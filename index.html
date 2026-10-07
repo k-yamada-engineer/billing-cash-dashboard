@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a4a">
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>請求・キャッシュ管理</title>
 <style>
@@ -160,6 +162,7 @@
 <div id="toast"></div>
 
 <script>
+var BUILD = '202610072033';
 var API = 'https://script.google.com/macros/s/AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ/exec';
 var WH = (function () {
   var m = location.search.match(/[?&]wh=([^&]+)/);
@@ -934,6 +937,8 @@ function renderCfg() {
     + '<label class="f">平均粗利/件（空欄=自動）<input id="c-平均粗利件単価_手動" value="' + esc(s['平均粗利件単価_手動'] || '') + '"></label>'
     + '</div><div style="margin-top:11px"><button class="btn" onclick="saveCfg()">保存</button></div></div>';
 
+  html += '<div class="card" style="padding:10px 14px"><span class="muted" style="font-size:11px">画面バージョン ' + BUILD + '（最新でない場合は自動で更新されます）</span></div>';
+
   html += '<div class="card"><h2>📩 メール取込・支払承認</h2><div class="form-grid">'
     + '<label class="f">A 請求書が届くメール<input id="c-A_受信メール" value="' + esc(s['A_受信メール'] || '') + '"></label>'
     + '<label class="f">B 請求書が届くメール<input id="c-B_受信メール" value="' + esc(s['B_受信メール'] || '') + '"></label>'
@@ -1203,6 +1208,19 @@ function markStale(on) {
   var el = $('stale');
   if (el) el.style.display = on ? 'inline-block' : 'none';
 }
+function checkUpdate() {
+  fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.text(); })
+    .then(function (t) {
+      var latest = String(t).trim();
+      if (!latest || latest === BUILD) return;
+      var once = 'bk_reload_' + latest;
+      try { if (sessionStorage.getItem(once)) return; sessionStorage.setItem(once, '1'); } catch (e) {}
+      location.replace(location.pathname + location.search.replace(/[?&]v=[^&]*/, '') + (location.search ? '&' : '?') + 'v=' + latest);
+    })
+    .catch(function () {});
+}
+checkUpdate();
 try { boot(); } catch (err) { showErr(err && err.stack ? err.stack : String(err)); }
 </script>
 </body>
