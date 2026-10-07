@@ -1213,7 +1213,8 @@ function checkUpdate() {
     .then(function (r) { return r.text(); })
     .then(function (t) {
       var latest = String(t).trim();
-      if (!latest || latest === BUILD) return;
+      if (!/^[0-9]{10,14}$/.test(latest)) return;   // version.txtが取れない時は何もしない
+      if (latest === BUILD) return;
       var once = 'bk_reload_' + latest;
       try { if (sessionStorage.getItem(once)) return; sessionStorage.setItem(once, '1'); } catch (e) {}
       location.replace(location.pathname + location.search.replace(/[?&]v=[^&]*/, '') + (location.search ? '&' : '?') + 'v=' + latest);
