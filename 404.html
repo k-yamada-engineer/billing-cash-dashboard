@@ -118,6 +118,23 @@
     nav.side button .ic { font-size: 17px; }
     nav.side .badge { position: absolute; margin: 0; transform: translate(14px, -6px); }
   }
+
+  /* --- スマホ最終調整（他のルールより後に置いて確実に効かせる） --- */
+  @media (max-width: 900px) {
+    html, body { max-width: 100%; overflow-x: hidden; }
+    .shell { display: block; }
+    main { max-width: 100%; width: 100%; padding: 10px; padding-bottom: 84px; }
+    nav.side {
+      position: fixed; bottom: 0; left: 0;
+      width: 100vw !important; max-width: 100vw;
+      display: flex; flex-wrap: nowrap;
+      border-right: none; border-top: 1px solid #e1e6ed;
+      padding: 4px 2px; z-index: 20; background: #ffffff;
+      padding-bottom: calc(4px + env(safe-area-inset-bottom));
+    }
+    .card, .grid2, section { max-width: 100%; }
+    .grid2 { grid-template-columns: 1fr !important; }
+  }
 </style>
 </head>
 <body>
