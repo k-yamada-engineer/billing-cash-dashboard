@@ -99,7 +99,7 @@
   <span class="logo">請求・キャッシュ</span>
   <span class="coswitch" id="coswitch"></span>
   <button class="sync" onclick="openReport()">📊 シート</button>
-  <span id="stale" style="display:none;font-size:11px;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:99px">最新を取得中…</span>\n  <button class="sync" onclick="reload_()">更新</button>
+  <span id="stale" style="display:none;font-size:11px;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:99px">最新を取得中…</span> <button class="sync" onclick="reload_()">更新</button>
 </div>
 <div class="shell">
   <nav class="side" id="nav"></nav>
@@ -141,18 +141,47 @@ function cos() { return CO === 'ALL' ? ['A', 'B'] : [CO]; }
 function inScope(x) { return CO === 'ALL' || x['会社'] === CO; }
 function toast(msg) { var t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(function () { t.style.display = 'none'; }, 3400); }
 function busy(on) { $('busy').style.display = on ? 'block' : 'none'; }
+var _jsonpSeq = 0;
+function jsonp(fn, args) {
+  return new Promise(function (resolve, reject) {
+    var cb = 'bkcb' + (++_jsonpSeq) + '_' + Date.now();
+    var sc = document.createElement('script');
+    var done = false;
+    var timer = setTimeout(function () {
+      if (done) return;
+      done = true;
+      cleanup();
+      reject(new Error('タイムアウト（通信できませんでした）'));
+    }, 120000);
+    function cleanup() {
+      clearTimeout(timer);
+      try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+      if (sc.parentNode) sc.parentNode.removeChild(sc);
+    }
+    window[cb] = function (res) {
+      if (done) return;
+      done = true;
+      cleanup();
+      if (res && res.error) reject(new Error(res.error));
+      else resolve(res ? res.result : null);
+    };
+    var url = API + '?callback=' + cb + '&wh=' + encodeURIComponent(WH) + '&fn=' + encodeURIComponent(fn)
+      + '&args=' + encodeURIComponent(JSON.stringify(args || []));
+    sc.src = url;
+    sc.onerror = function () {
+      if (done) return;
+      done = true;
+      cleanup();
+      reject(new Error('読み込みに失敗しました'));
+    };
+    document.body.appendChild(sc);
+  });
+}
 function run(fn) {
   var args = Array.prototype.slice.call(arguments, 1);
   busy(true);
-  return fetch(API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ wh: WH, fn: fn, args: args })
-  }).then(function (r) { return r.json(); }).then(function (j) {
-    busy(false);
-    if (j.error) { toast('エラー: ' + j.error); throw new Error(j.error); }
-    return j.result;
-  }).catch(function (e) { busy(false); toast('通信エラー: ' + e.message); throw e; });
+  return jsonp(fn, args).then(function (r) { busy(false); return r; })
+    .catch(function (e) { busy(false); toast('エラー: ' + e.message); throw e; });
 }
 function applyData(json) { DATA = JSON.parse(json); try { localStorage.setItem('bk_data', json); } catch (e) {} renderAll(); }
 function reload_() { markStale(true); run('getData').then(function (j) { applyData(j); markStale(false); toast('最新にしました'); }); }
@@ -571,11 +600,17 @@ function uploadInv() {
   busy(true);
   fr.onload = function () {
     var b64 = String(fr.result).split(',')[1];
-    run('uploadInvoice', { co: co, name: f.name, mime: f.type, data: b64 }).then(function (j) {
-      var r = JSON.parse(j);
-      DATA = r.data; renderAll(); showTab('bill');
-      toast(r.result);
-    });
+    busy(true);
+    toast('アップロードしています…');
+    fetch(API, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ wh: WH, fn: 'uploadInvoice', args: [{ co: co, name: f.name, mime: f.type, data: b64 }] })
+    }).then(function () {
+      setTimeout(function () {
+        run('getData').then(function (j) { applyData(j); showTab('bill'); busy(false); toast('読み取って登録しました'); });
+      }, 6000);
+    }).catch(function (e) { busy(false); toast('アップロード失敗: ' + e.message); });
   };
   fr.readAsDataURL(f);
 }
@@ -1115,13 +1150,9 @@ function boot() {
     $('sec-cash').innerHTML = '<div class="card"><div class="empty">読み込んでいます…</div></div>';
     renderNav();
   }
-  fetch(API + '?api=data&wh=' + encodeURIComponent(WH))
-    .then(function (r) { return r.json(); })
-    .then(function (j) {
-      if (j.error) { showErr(j.error); return; }
-      applyAndCache(j.result);
-      markStale(false);
-    })
+  markStale(true);
+  jsonp('getData', [])
+    .then(function (r) { applyAndCache(r); markStale(false); })
     .catch(function (e) { markStale(false); if (!cached) showErr('通信できません: ' + e.message); });
 }
 function markStale(on) {
