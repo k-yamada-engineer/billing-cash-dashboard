@@ -88,6 +88,24 @@
   .balrow input.amt { width: 130px; padding: 6px 8px; border: 1px solid #d3d9e2; border-radius: 7px; text-align: right; font-size: 14px; }
   textarea.paste { min-height: 108px; font-family: ui-monospace, monospace; font-size: 12px; }
   @media (max-width: 900px) {
+    .topbar { height: auto; min-height: 52px; flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+    .topbar .logo { font-size: 14px; white-space: nowrap; }
+    .topbar .sync { padding: 5px 8px; font-size: 11px; }
+    #stale { font-size: 10px !important; }
+    .coswitch { order: 9; margin-left: 0; width: 100%; }
+    .coswitch button { flex: 1; padding: 6px 2px; font-size: 11px; text-align: center; }
+    .kpis { grid-template-columns: repeat(2, 1fr) !important; }
+    .kpi .v { font-size: 15px; }
+    .cohead { flex-wrap: wrap; gap: 4px; }
+    .card { padding: 12px; }
+    .card > h2 { flex-wrap: wrap; }
+    table { font-size: 12px; }
+    th, td { padding: 6px 5px; }
+    .netbox .row { font-size: 12px; }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    label.f input, label.f select { font-size: 16px; }
+  }
+  @media (max-width: 900px) {
     main { padding: 12px; padding-bottom: 76px; }
     .grid2 { grid-template-columns: 1fr; }
     nav.side { position: fixed; bottom: 0; left: 0; right: 0; width: auto; display: flex; border-right: none; border-top: 1px solid #e1e6ed; padding: 4px; z-index: 20; }
