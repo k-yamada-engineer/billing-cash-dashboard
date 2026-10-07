@@ -162,8 +162,18 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610072033';
-var API = 'https://script.google.com/macros/s/AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ/exec';
+var BUILD = '202610072046';
+var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
+// Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
+// その場合に備えて順に試す。成功したものを記憶して以後それを使う。
+var API_BASES = [
+  'https://script.google.com/macros/s/' + DEPLOY_ID + '/exec',
+  'https://script.google.com/a/macros/taisyoku-smile.com/s/' + DEPLOY_ID + '/exec'
+];
+var API = (function () {
+  try { var v = localStorage.getItem('bk_api'); if (v && API_BASES.indexOf(v) >= 0) return v; } catch (e) {}
+  return API_BASES[0];
+})();
 var WH = (function () {
   var m = location.search.match(/[?&]wh=([^&]+)/);
   if (m) { try { localStorage.setItem('bk_wh', decodeURIComponent(m[1])); } catch (e) {} return decodeURIComponent(m[1]); }
@@ -190,6 +200,18 @@ function toast(msg) { var t = $('toast'); t.textContent = msg; t.style.display =
 function busy(on) { $('busy').style.display = on ? 'block' : 'none'; }
 var _jsonpSeq = 0;
 function jsonp(fn, args) {
+  // 1本目で失敗したらもう1本のURLを試す
+  return jsonpOn(API, fn, args).catch(function (e1) {
+    var other = API_BASES.filter(function (b) { return b !== API; })[0];
+    if (!other) throw e1;
+    return jsonpOn(other, fn, args).then(function (r) {
+      API = other;
+      try { localStorage.setItem('bk_api', other); } catch (e) {}
+      return r;
+    });
+  });
+}
+function jsonpOn(base, fn, args) {
   return new Promise(function (resolve, reject) {
     var cb = 'bkcb' + (++_jsonpSeq) + '_' + Date.now();
     var sc = document.createElement('script');
@@ -198,7 +220,7 @@ function jsonp(fn, args) {
       if (done) return;
       done = true;
       cleanup();
-      reject(new Error('タイムアウト（通信できませんでした）'));
+      reject(new Error('タイムアウト'));
     }, 120000);
     function cleanup() {
       clearTimeout(timer);
@@ -212,7 +234,7 @@ function jsonp(fn, args) {
       if (res && res.error) reject(new Error(res.error));
       else resolve(res ? res.result : null);
     };
-    var url = API + '?callback=' + cb + '&wh=' + encodeURIComponent(WH) + '&fn=' + encodeURIComponent(fn)
+    var url = base + '?callback=' + cb + '&wh=' + encodeURIComponent(WH) + '&fn=' + encodeURIComponent(fn)
       + '&args=' + encodeURIComponent(JSON.stringify(args || []));
     sc.src = url;
     sc.onerror = function () {
@@ -1202,7 +1224,13 @@ function boot() {
   markStale(true);
   jsonp('getData', [])
     .then(function (r) { applyAndCache(r); markStale(false); })
-    .catch(function (e) { markStale(false); if (!cached) showErr('通信できません: ' + e.message); });
+    .catch(function (e) {
+      markStale(false);
+      if (!cached) showErr('データを取得できませんでした（' + e.message + '）\n\n'
+        + '・Chromeで複数のGoogleアカウントにログインしていると弾かれることがあります。\n'
+        + '　シークレットウィンドウで開くか、info@taisyoku-smile.com のみでログインしてお試しください。\n'
+        + '・広告ブロッカー等の拡張機能が script.google.com を遮断している場合も同じ症状になります。');
+    });
 }
 function markStale(on) {
   var el = $('stale');
