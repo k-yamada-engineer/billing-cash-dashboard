@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; background: #f4f6f9; color: #1f2933; font-size: 14px; -webkit-text-size-adjust: 100%; }
+  a { color: #2864f0; }
+  .topbar { background: #1b2a4a; color: #ffffff; padding: 0 16px; height: 52px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 30; }
+  .topbar .logo { font-size: 15px; font-weight: 700; letter-spacing: .02em; }
+  .coswitch { display: inline-flex; background: rgba(255,255,255,0.12); border-radius: 8px; padding: 3px; margin-left: auto; }
+  .coswitch button { border: none; background: none; color: #c7d2e4; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+  .coswitch button.on { background: #ffffff; color: #1b2a4a; }
+  .topbar .sync { background: none; border: 1px solid rgba(255,255,255,0.3); color: #ffffff; border-radius: 6px; font-size: 12px; padding: 5px 10px; cursor: pointer; }
+  .shell { display: flex; min-height: calc(100vh - 52px); }
+  nav.side { width: 190px; background: #ffffff; border-right: 1px solid #e1e6ed; padding: 10px 8px; flex-shrink: 0; }
+  nav.side button { display: flex; align-items: center; gap: 9px; width: 100%; border: none; background: none; text-align: left; padding: 10px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: #4a5768; cursor: pointer; margin-bottom: 2px; }
+  nav.side button.on { background: #eaf1fe; color: #1b52c8; }
+  nav.side button .ic { font-size: 15px; width: 18px; text-align: center; }
+  nav.side .badge { margin-left: auto; background: #e5533d; color: #ffffff; font-size: 10px; font-weight: 700; border-radius: 99px; padding: 1px 6px; }
+  main { flex: 1; padding: 18px; max-width: 1180px; }
+  .card { background: #ffffff; border: 1px solid #e1e6ed; border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .card > h2 { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .card > h2 .sub { font-weight: 400; font-size: 11.5px; color: #7b8794; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cohead { display: flex; align-items: baseline; gap: 8px; border-bottom: 2px solid #1b2a4a; padding-bottom: 7px; margin-bottom: 12px; }
+  .cohead .nm { font-size: 14px; font-weight: 700; }
+  .cohead .tag { font-size: 10.5px; color: #7b8794; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #e1e6ed; border: 1px solid #e1e6ed; border-radius: 8px; overflow: hidden; }
+  .kpi { background: #ffffff; padding: 9px 10px; }
+  .kpi .l { font-size: 10.5px; color: #7b8794; font-weight: 600; margin-bottom: 3px; }
+  .kpi .v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi .v.sm { font-size: 12.5px; font-weight: 600; }
+  .plus { color: #0f9d58; } .minus { color: #e5533d; } .warn { color: #c77700; } .muted { color: #7b8794; }
+  .netbox { margin-top: 12px; border: 1px solid #e1e6ed; border-radius: 8px; overflow: hidden; }
+  .netbox .row { display: flex; justify-content: space-between; padding: 8px 12px; font-size: 12.5px; border-bottom: 1px solid #f0f3f7; }
+  .netbox .row:last-child { border-bottom: none; }
+  .netbox .row.total { background: #f7f9fc; font-weight: 700; font-size: 13.5px; }
+  .netbox .row span:last-child { font-variant-numeric: tabular-nums; }
+  .goal { margin-top: 12px; background: #eaf1fe; border-radius: 8px; padding: 10px 12px; }
+  .goal .t { font-size: 11.5px; font-weight: 700; color: #1b52c8; }
+  .goal .b { font-size: 15px; font-weight: 700; margin-top: 3px; }
+  .bar { height: 6px; background: #d3e0f8; border-radius: 99px; margin-top: 7px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: #2864f0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: #7b8794; font-size: 11px; font-weight: 700; padding: 7px 8px; border-bottom: 1px solid #e1e6ed; white-space: nowrap; background: #f9fafc; }
+  td { padding: 9px 8px; border-bottom: 1px solid #f0f3f7; vertical-align: middle; }
+  tr:hover td { background: #fafbfd; }
+  .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tablewrap { overflow-x: auto; margin: 0 -4px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .p-gray { background: #f0f3f7; color: #5a6673; border-color: #dfe4eb; }
+  .p-blue { background: #eaf1fe; color: #1b52c8; border-color: #cddcfb; }
+  .p-green { background: #e6f6ec; color: #0b7a3e; border-color: #c5e9d3; }
+  .p-red { background: #fdecea; color: #b3251a; border-color: #f7cdc8; }
+  .p-amber { background: #fdf3e0; color: #96610a; border-color: #f5e0b8; }
+  .btn { border: none; border-radius: 7px; padding: 8px 15px; font-size: 13px; font-weight: 700; cursor: pointer; background: #2864f0; color: #ffffff; }
+  .btn:active { opacity: .8; }
+  .btn.sub { background: #ffffff; color: #3b4757; border: 1px solid #d3d9e2; }
+  .btn.green { background: #0f9d58; }
+  .btn.red { background: #ffffff; color: #b3251a; border: 1px solid #f2c9c4; }
+  .btn.mini { padding: 4px 10px; font-size: 11.5px; border-radius: 6px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 9px; }
+  label.f { display: block; font-size: 11px; font-weight: 700; color: #5a6673; }
+  label.f input, label.f select, label.f textarea { width: 100%; margin-top: 4px; padding: 8px 9px; border: 1px solid #d3d9e2; border-radius: 7px; font-size: 14px; background: #ffffff; color: #1f2933; font-family: inherit; }
+  label.f input:focus, label.f select:focus { outline: 2px solid #bcd2fb; border-color: #2864f0; }
+  .seg { display: inline-flex; border: 1px solid #d3d9e2; border-radius: 7px; overflow: hidden; background: #ffffff; }
+  .seg button { border: none; background: none; padding: 7px 13px; font-size: 12.5px; font-weight: 700; color: #5a6673; cursor: pointer; border-right: 1px solid #eef1f5; }
+  .seg button:last-child { border-right: none; }
+  .seg button.on { background: #2864f0; color: #ffffff; }
+  .row-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+  .empty { color: #9aa5b1; text-align: center; padding: 22px; font-size: 13px; }
+  .reccard { border: 1px solid #e1e6ed; border-radius: 9px; padding: 11px; margin-bottom: 9px; }
+  .reccard.out { border-left: 3px solid #e5533d; }
+  .reccard.in { border-left: 3px solid #0f9d58; }
+  #busy { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: #2864f0; display: none; z-index: 99; }
+  #toast { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%); background: #1b2a4a; color: #ffffff; padding: 10px 18px; border-radius: 8px; font-size: 13px; display: none; z-index: 99; max-width: 90%; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+  .modal-bg { position: fixed; inset: 0; background: rgba(27,42,74,0.45); display: none; z-index: 50; align-items: flex-start; justify-content: center; padding: 20px; overflow: auto; }
+  .modal { background: #ffffff; border-radius: 10px; padding: 18px; width: 100%; max-width: 540px; }
+  .modal h3 { font-size: 14px; margin-bottom: 12px; }
+  .steps { font-size: 12px; line-height: 1.75; color: #4a5768; margin-bottom: 10px; }
+  .balrow { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
+  .balrow .name { font-size: 13px; flex: 1; }
+  .balrow input.amt { width: 130px; padding: 6px 8px; border: 1px solid #d3d9e2; border-radius: 7px; text-align: right; font-size: 14px; }
+  textarea.paste { min-height: 108px; font-family: ui-monospace, monospace; font-size: 12px; }
+  @media (max-width: 900px) {
+    main { padding: 12px; padding-bottom: 76px; }
+    .grid2 { grid-template-columns: 1fr; }
+    nav.side { position: fixed; bottom: 0; left: 0; right: 0; width: auto; display: flex; border-right: none; border-top: 1px solid #e1e6ed; padding: 4px; z-index: 20; }
+    nav.side button { flex-direction: column; gap: 2px; font-size: 10px; padding: 6px 2px; justify-content: center; }
+    nav.side button .ic { font-size: 17px; }
+    nav.side .badge { position: absolute; margin: 0; transform: translate(14px, -6px); }
+  }
+</style>
+</head>
+<body>
+<div id="busy"></div>
+<div class="topbar">
+  <span class="logo">請求・キャッシュ</span>
+  <span class="coswitch" id="coswitch"></span>
+  <button class="sync" onclick="openReport()">📊 シート</button>
+  <span id="stale" style="display:none;font-size:11px;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:99px">最新を取得中…</span>\n  <button class="sync" onclick="reload_()">更新</button>
+</div>
+<div class="shell">
+  <nav class="side" id="nav"></nav>
+  <main>
+    <section id="sec-cash"></section>
+    <section id="sec-inv" style="display:none"></section>
+    <section id="sec-bill" style="display:none"></section>
+    <section id="sec-rec" style="display:none"></section>
+    <section id="sec-pl" style="display:none"></section>
+    <section id="sec-cfg" style="display:none"></section>
+  </main>
+</div>
+<div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" id="modal-body"></div></div>
+<div id="toast"></div>
+
+<script>
+var API = 'https://script.google.com/macros/s/AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ/exec';
+var WH = (function () {
+  var m = location.search.match(/[?&]wh=([^&]+)/);
+  if (m) { try { localStorage.setItem('bk_wh', decodeURIComponent(m[1])); } catch (e) {} return decodeURIComponent(m[1]); }
+  try { return localStorage.getItem('bk_wh') || ''; } catch (e) { return ''; }
+})();
+var DATA = { invoices: [], bills: [], txns: [], balances: [], settings: {}, catRules: [], pl: null, freee: {}, serverTime: '' };
+var TAB = 'cash';
+var CO = 'ALL';
+var FILTER = { inv: 'ALL', bill: 'ALL' };
+var FREEE_COMPANIES = { A: [], B: [] };
+var FREEE_WALLETS = { A: [], B: [] };
+var TABS = [['cash', '🏠', 'ホーム'], ['inv', '📤', '請求（売上）'], ['bill', '📥', '支払（経費）'], ['rec', '🔗', '消し込み'], ['pl', '📈', 'PL（費目別）'], ['cfg', '⚙️', '設定']];
+
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function yen(n) { return '¥' + Number(n || 0).toLocaleString(); }
+function d2s(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function todayStr() { return d2s(new Date()); }
+function ym() { return todayStr().slice(0, 7); }
+function coName(c) { return DATA.settings['会社' + c + '名'] || c; }
+function cos() { return CO === 'ALL' ? ['A', 'B'] : [CO]; }
+function inScope(x) { return CO === 'ALL' || x['会社'] === CO; }
+function toast(msg) { var t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(function () { t.style.display = 'none'; }, 3400); }
+function busy(on) { $('busy').style.display = on ? 'block' : 'none'; }
+function run(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  busy(true);
+  return fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ wh: WH, fn: fn, args: args })
+  }).then(function (r) { return r.json(); }).then(function (j) {
+    busy(false);
+    if (j.error) { toast('エラー: ' + j.error); throw new Error(j.error); }
+    return j.result;
+  }).catch(function (e) { busy(false); toast('通信エラー: ' + e.message); throw e; });
+}
+function applyData(json) { DATA = JSON.parse(json); try { localStorage.setItem('bk_data', json); } catch (e) {} renderAll(); }
+function reload_() { markStale(true); run('getData').then(function (j) { applyData(j); markStale(false); toast('最新にしました'); }); }
+
+function freeeReady(co) { return !!(DATA.freee && DATA.freee[co] && DATA.freee[co].hasToken); }
+function liveInv() { return DATA.invoices.filter(function (v) { return v['状態'] !== '取消'; }); }
+function liveBill() { return (DATA.bills || []).filter(function (b) { return b['状態'] !== '取消'; }); }
+function invStatus(v) { return (v['状態'] === '発行済' && v['入金期日'] && v['入金期日'] < todayStr()) ? '期日超過' : v['状態']; }
+function billStatus(b) { return (b['状態'] === '未払' && b['支払期日'] && b['支払期日'] < todayStr()) ? '期日超過' : b['状態']; }
+function pill(s) {
+  var c = { '未発行': 'p-amber', '発行済': 'p-blue', '入金済': 'p-green', '期日超過': 'p-red', '未払': 'p-amber', '支払済': 'p-green', '取消': 'p-gray', '要承認': 'p-red', '要確認': 'p-amber' }[s] || 'p-gray';
+  return '<span class="pill ' + c + '">' + esc(s) + '</span>';
+}
+function alertCount() {
+  var t = todayStr(), n = 0;
+  liveInv().filter(inScope).forEach(function (v) {
+    if (v['状態'] === '未発行' && v['請求予定日'] && v['請求予定日'] <= t) n++;
+    if (v['状態'] === '発行済' && v['入金期日'] && v['入金期日'] < t) n++;
+  });
+  liveBill().filter(inScope).forEach(function (b) {
+    if (b['状態'] === '未払' && b['支払期日'] && b['支払期日'] < t) n++;
+  });
+  return n;
+}
+function billCount() {
+  return liveBill().filter(inScope).filter(function (b) { return b['状態'] === '要確認' || b['状態'] === '要承認'; }).length;
+}
+function pendingTxns() { return DATA.txns.filter(function (t) { return t['状態'] === '未処理'; }); }
+
+/* ---------- 指標 ---------- */
+function metrics(co) {
+  var m = ym(), t = todayStr();
+  var invs = liveInv().filter(function (v) { return v['会社'] === co; });
+  var bills = liveBill().filter(function (b) { return b['会社'] === co; });
+  var bal = 0, cardBal = 0;
+  DATA.balances.forEach(function (b) {
+    if (b['会社'] !== co) return;
+    if (String(b['口座']).indexOf('💳') === 0) cardBal += Number(b['残高']) || 0;
+    else bal += Number(b['残高']) || 0;
+  });
+  var paidM = 0, expM = 0, ar = 0, arOverAmt = 0, arOverCnt = 0, grossM = 0;
+  var samples = [];
+  var d90 = d2s(new Date(Date.now() - 90 * 86400000));
+  invs.forEach(function (v) {
+    var amt = Number(v['金額']) || 0, gp = v['粗利'] === '' ? null : Number(v['粗利']) || 0;
+    if (v['入金日'] && v['入金日'].slice(0, 7) === m) paidM += amt;
+    if (v['状態'] === '発行済') {
+      ar += amt;
+      if (v['入金期日'] && v['入金期日'].slice(0, 7) === m) expM += amt;
+      if (v['入金期日'] && v['入金期日'] < t) { arOverAmt += amt; arOverCnt++; }
+    }
+    if (v['発行日'] && v['発行日'].slice(0, 7) === m && gp !== null) grossM += gp;
+    if (v['発行日'] && v['発行日'] >= d90 && gp !== null && gp > 0) samples.push(gp);
+  });
+  var ap = 0, apM = 0, apOverAmt = 0, apOverCnt = 0, paidOutM = 0;
+  bills.forEach(function (b) {
+    var amt = Number(b['金額']) || 0;
+    if (b['状態'] === '未払') {
+      ap += amt;
+      if (b['支払期日'] && b['支払期日'].slice(0, 7) === m) apM += amt;
+      if (b['支払期日'] && b['支払期日'] < t) { apOverAmt += amt; apOverCnt++; }
+    }
+    if (b['支払日'] && b['支払日'].slice(0, 7) === m) paidOutM += amt;
+  });
+  var fixed = Number(DATA.settings[co + '_固定費月']) || 0;
+  var target = Number(DATA.settings[co + '_粗利目標月']) || 0;
+  var unitManual = Number(DATA.settings['平均粗利件単価_手動']) || 0;
+  var unit = unitManual || (samples.length ? Math.round(samples.reduce(function (a, b) { return a + b; }, 0) / samples.length) : 0);
+  var remain = Math.max(0, target - grossM);
+  return {
+    bal: bal, cardBal: cardBal, paidM: paidM, expM: expM, ar: ar, arOverAmt: arOverAmt, arOverCnt: arOverCnt,
+    ap: ap, apM: apM, apOverAmt: apOverAmt, apOverCnt: apOverCnt, paidOutM: paidOutM,
+    grossM: grossM, target: target, unit: unit, remain: remain,
+    remainCnt: (target > 0 && unit > 0) ? Math.ceil(remain / unit) : null,
+    runway: fixed > 0 ? bal / fixed : null,
+    forecast: bal + expM - apM
+  };
+}
+
+/* ---------- ホーム ---------- */
+function renderCash() {
+  var list = cos();
+  var html = '<div class="' + (list.length > 1 ? 'grid2' : '') + '">';
+  list.forEach(function (co) {
+    var x = metrics(co);
+    html += '<div class="card">'
+      + '<div class="cohead"><span class="nm">' + esc(coName(co)) + '</span><span class="tag">' + (co === 'A' ? '住信SBI・UnivaPay' : 'GMOあおぞら') + '</span></div>'
+      + '<div class="kpis" style="grid-template-columns:repeat(4,1fr)">'
+      + '<div class="kpi"><div class="l">現金残高</div><div class="v">' + yen(x.bal) + '</div></div>'
+      + '<div class="kpi"><div class="l">今月の入金</div><div class="v plus">' + yen(x.paidM) + '</div></div>'
+      + '<div class="kpi"><div class="l">今月の支払</div><div class="v minus">' + yen(x.paidOutM) + '</div></div>'
+      + '<div class="kpi"><div class="l">売掛（未回収）</div><div class="v sm">' + yen(x.ar) + (x.arOverCnt ? ' <span class="minus">超過' + x.arOverCnt + '</span>' : '') + '</div></div>'
+      + '<div class="kpi"><div class="l">買掛（未払）</div><div class="v sm">' + yen(x.ap) + (x.apOverCnt ? ' <span class="minus">超過' + x.apOverCnt + '</span>' : '') + '</div></div>'
+      + '<div class="kpi"><div class="l">クレカ未払</div><div class="v sm ' + (x.cardBal ? 'minus' : '') + '">' + (x.cardBal ? yen(x.cardBal) : '—') + '</div></div>'
+      + '<div class="kpi"><div class="l">余力</div><div class="v sm">' + (x.runway === null ? '<span class="muted">固定費未設定</span>' : x.runway.toFixed(1) + 'ヶ月') + '</div></div>'
+      + '</div>'
+      + '<div class="netbox">'
+      + '<div class="row"><span>今の残高</span><span>' + yen(x.bal) + '</span></div>'
+      + '<div class="row"><span class="plus">＋ 今月の入金予定（残）</span><span class="plus">' + yen(x.expM) + '</span></div>'
+      + '<div class="row"><span class="minus">− 今月の支払予定（残）</span><span class="minus">' + yen(x.apM) + '</span></div>'
+      + '<div class="row total"><span>月末の見込み残高</span><span class="' + (x.forecast < 0 ? 'minus' : '') + '">' + yen(x.forecast) + '</span></div>'
+      + '</div>';
+    if (x.target > 0) {
+      var pct = Math.min(100, Math.round(x.grossM / x.target * 100));
+      html += '<div class="goal"><div class="t">今月の粗利 ' + yen(x.grossM) + ' / 目標 ' + yen(x.target) + '（' + pct + '%）</div>'
+        + '<div class="b">' + (x.remainCnt === null ? '実績が貯まると「あと◯本」が出ます' : (x.remainCnt === 0 ? '達成 🎉' : 'あと ' + x.remainCnt + ' 本')) + (x.remainCnt ? '<span class="muted" style="font-size:11px;font-weight:400">（平均 ' + yen(x.unit) + '/件・残り ' + yen(x.remain) + '）</span>' : '') + '</div>'
+        + '<div class="bar"><i style="width:' + pct + '%"></i></div></div>';
+    } else {
+      html += '<div class="goal"><div class="t">粗利目標が未設定</div><div class="b" style="font-size:12px;font-weight:400">設定タブで目標を入れると「今月あと◯本」が出ます</div></div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+
+  var t = todayStr();
+  var todo = [];
+  liveInv().filter(inScope).forEach(function (v) {
+    if (v['状態'] === '未発行' && v['請求予定日'] && v['請求予定日'] <= t) todo.push({ k: '請求書を発行する', d: v['請求予定日'], co: v['会社'], nm: v['取引先'], a: v['金額'], side: 'in', urgent: true });
+    if (v['状態'] === '発行済' && v['入金期日'] && v['入金期日'] < t) todo.push({ k: '入金が来ていない', d: v['入金期日'], co: v['会社'], nm: v['取引先'], a: v['金額'], side: 'in', urgent: true });
+  });
+  liveBill().filter(inScope).forEach(function (b) {
+    if (b['状態'] !== '未払' || !b['支払期日']) return;
+    if (b['支払期日'] < t) todo.push({ k: '支払が遅れている', d: b['支払期日'], co: b['会社'], nm: b['支払先'], a: b['金額'], side: 'out', urgent: true });
+    else if (b['支払期日'] <= d2s(new Date(Date.now() + 7 * 86400000))) todo.push({ k: '今週支払う', d: b['支払期日'], co: b['会社'], nm: b['支払先'], a: b['金額'], side: 'out', urgent: false });
+  });
+  var pend = pendingTxns().filter(inScope);
+  todo.sort(function (a, b) { return a.d < b.d ? -1 : 1; });
+
+  html += '<div class="card"><h2>やること <span class="sub">期日順</span></h2>';
+  if (!todo.length && !pend.length) html += '<div class="empty">対応が必要なものはありません 👍</div>';
+  else {
+    html += '<div class="tablewrap"><table><tr><th>期日</th><th>内容</th><th>会社</th><th>相手</th><th class="num">金額</th></tr>';
+    todo.forEach(function (x) {
+      html += '<tr><td class="' + (x.urgent ? 'minus' : '') + '">' + esc(x.d) + '</td><td>' + (x.urgent ? '🔴 ' : '') + esc(x.k) + '</td><td>' + esc(coName(x.co)) + '</td><td>' + esc(x.nm) + '</td><td class="num ' + (x.side === 'out' ? 'minus' : 'plus') + '">' + (x.side === 'out' ? '−' : '') + yen(x.a) + '</td></tr>';
+    });
+    if (pend.length) html += '<tr><td class="warn">—</td><td>未消込の入出金を確認</td><td colspan="2">' + pend.length + '件</td><td class="num"><button class="btn mini sub" onclick="showTab(\'rec\')">開く</button></td></tr>';
+    html += '</table></div>';
+  }
+  html += '</div>';
+  html += simCard();
+  $('sec-cash').innerHTML = html;
+}
+
+function simDefault() { var d = new Date(); return d2s(new Date(d.getFullYear(), d.getMonth() + 1, 0)); }
+var SIMDATE = '';
+
+function simCard() {
+  if (!SIMDATE) SIMDATE = simDefault();
+  var t = todayStr();
+  var html = '<div class="card"><h2>💰 いつ時点の現金か <span class="sub">この日までの入金・支払を反映した見込み</span>'
+    + '<input type="date" id="sim-date" value="' + esc(SIMDATE) + '" onchange="SIMDATE=this.value;renderCash()" '
+    + 'style="margin-left:auto;padding:6px 9px;border:1px solid #d3d9e2;border-radius:7px;font-size:13px"></h2>';
+  html += '<div class="tablewrap"><table><tr><th>会社</th><th class="num">今の現金</th>'
+    + '<th class="num">＋ 入金予定</th><th class="num">− 支払予定</th><th class="num">− クレカ</th>'
+    + '<th class="num">' + esc(SIMDATE) + ' の見込み</th></tr>';
+  var tot = { bal: 0, inc: 0, pay: 0, card: 0 };
+  cos().forEach(function (co) {
+    var bal = 0, card = 0;
+    DATA.balances.forEach(function (b) {
+      if (b['会社'] !== co) return;
+      if (String(b['口座']).indexOf('💳') === 0) card += Number(b['残高']) || 0;
+      else bal += Number(b['残高']) || 0;
+    });
+    var inc = 0, pay = 0;
+    liveInv().forEach(function (v) {
+      if (v['会社'] !== co || v['状態'] !== '発行済') return;
+      if (v['入金期日'] && v['入金期日'] <= SIMDATE) inc += Number(v['金額']) || 0;
+    });
+    liveBill().forEach(function (b) {
+      if (b['会社'] !== co) return;
+      if (b['状態'] !== '未払' && b['状態'] !== '要承認') return;
+      if (!b['支払期日'] || b['支払期日'] > SIMDATE) return;
+      var amt = Number(b['金額']) || 0;
+      if (String(b['費目']) === 'クレジットカード') card += amt; else pay += amt;
+    });
+    var end = bal + inc - pay - card;
+    tot.bal += bal; tot.inc += inc; tot.pay += pay; tot.card += card;
+    html += '<tr><td><b>' + esc(coName(co)) + '</b></td>'
+      + '<td class="num">' + yen(bal) + '</td>'
+      + '<td class="num plus">' + (inc ? '+' + yen(inc) : '—') + '</td>'
+      + '<td class="num minus">' + (pay ? '−' + yen(pay) : '—') + '</td>'
+      + '<td class="num minus">' + (card ? '−' + yen(card) : '—') + '</td>'
+      + '<td class="num" style="font-weight:700;font-size:15px' + (end < 0 ? ';color:#e5533d' : '') + '">' + yen(end) + '</td></tr>';
+  });
+  if (cos().length > 1) {
+    var e2 = tot.bal + tot.inc - tot.pay - tot.card;
+    html += '<tr style="background:#f7f9fc"><td><b>合計</b></td><td class="num"><b>' + yen(tot.bal) + '</b></td>'
+      + '<td class="num plus">' + (tot.inc ? '+' + yen(tot.inc) : '—') + '</td>'
+      + '<td class="num minus">' + (tot.pay ? '−' + yen(tot.pay) : '—') + '</td>'
+      + '<td class="num minus">' + (tot.card ? '−' + yen(tot.card) : '—') + '</td>'
+      + '<td class="num" style="font-weight:700;font-size:15px' + (e2 < 0 ? ';color:#e5533d' : '') + '">' + yen(e2) + '</td></tr>';
+  }
+  html += '</table></div>';
+  var noDue = liveBill().filter(inScope).filter(function (b) { return (b['状態'] === '未払' || b['状態'] === '要承認') && !b['支払期日']; });
+  if (noDue.length) html += '<div class="muted" style="font-size:11px;margin-top:7px">※支払期日が未入力の ' + noDue.length + '件は計算に入っていません（支払タブで期日を入れてください）</div>';
+  return html + '</div>';
+}
+
+/* ---------- 請求（売上） ---------- */
+function renderInv() {
+  var html = '<div class="card"><h2>請求を登録 <span class="sub">10秒</span></h2><div class="form-grid">'
+    + coSelect('n-co')
+    + '<label class="f">取引先<input id="n-client" placeholder="株式会社◯◯"></label>'
+    + '<label class="f">件名<input id="n-title" placeholder="8月分 ◯◯費用"></label>'
+    + '<label class="f">金額（税込）<input id="n-amt" type="number" inputmode="numeric"></label>'
+    + '<label class="f">原価<input id="n-cost" type="number" inputmode="numeric" placeholder="空欄可"></label>'
+    + '<label class="f">請求予定日<input id="n-plan" type="date" value="' + todayStr() + '"></label>'
+    + '<label class="f">入金期日<input id="n-due" type="date"></label>'
+    + '<label class="f">メモ<input id="n-memo"></label>'
+    + '</div><div style="margin-top:11px"><button class="btn" onclick="addInv()">登録する</button></div></div>';
+
+  html += '<div class="card"><h2>請求台帳</h2><div style="margin-bottom:11px">'
+    + seg_('inv', [['ALL', 'すべて'], ['未発行', '未発行'], ['発行済', '未回収'], ['入金済', '入金済']]) + '</div>';
+  var list = liveInv().filter(inScope).filter(function (v) { return FILTER.inv === 'ALL' || v['状態'] === FILTER.inv; })
+    .sort(function (a, b) { return (b['請求予定日'] || b['作成日時']) < (a['請求予定日'] || a['作成日時']) ? -1 : 1; });
+  if (!list.length) html += '<div class="empty">該当なし</div>';
+  else {
+    html += '<div class="tablewrap"><table><tr><th>状態</th><th>会社</th><th>取引先 / 件名</th><th class="num">金額</th><th class="num">粗利</th><th>予定 → 期日</th><th></th></tr>';
+    list.forEach(function (v) {
+      html += '<tr><td>' + pill(invStatus(v)) + '</td><td>' + esc(coName(v['会社'])) + '</td>'
+        + '<td><b>' + esc(v['取引先']) + '</b><br><span class="muted" style="font-size:11px">' + esc(v['件名']) + (v['freee番号'] ? ' / ' + esc(v['freee番号']) : '') + '</span></td>'
+        + '<td class="num">' + yen(v['金額']) + '</td>'
+        + '<td class="num">' + (v['粗利'] === '' ? '<span class="minus">未入力</span>' : yen(v['粗利'])) + '</td>'
+        + '<td style="font-size:11px" class="muted">' + esc(v['請求予定日'] || '-') + '<br>→ ' + esc(v['入金期日'] || '-') + '</td>'
+        + '<td><div class="row-actions">'
+        + (v['状態'] === '未発行' ? '<button class="btn mini sub" onclick="issueInv(\'' + v.id + '\')">発行した</button>' : '')
+        + (v['状態'] === '発行済' ? '<button class="btn mini green" onclick="paidInv(\'' + v.id + '\')">入金あり</button>' : '')
+        + '<button class="btn mini sub" onclick="editInv(\'' + v.id + '\')">編集</button></div></td></tr>';
+    });
+    html += '</table></div>';
+  }
+  $('sec-inv').innerHTML = html + '</div>';
+}
+function coSelect(id, val) {
+  return '<label class="f">会社<select id="' + id + '">'
+    + '<option value="A" ' + (val === 'A' || (!val && CO !== 'B') ? 'selected' : '') + '>' + esc(coName('A')) + '</option>'
+    + '<option value="B" ' + (val === 'B' || (!val && CO === 'B') ? 'selected' : '') + '>' + esc(coName('B')) + '</option></select></label>';
+}
+function seg_(key, items) {
+  var h = '<span class="seg">';
+  items.forEach(function (it) { h += '<button class="' + (FILTER[key] === it[0] ? 'on' : '') + '" onclick="FILTER.' + key + '=\'' + it[0] + '\';render' + (key === 'inv' ? 'Inv' : 'Bill') + '()">' + esc(it[1]) + '</button>'; });
+  return h + '</span>';
+}
+function addInv() {
+  if (!$('n-client').value || !$('n-amt').value) { toast('取引先と金額は必須です'); return; }
+  run('addInvoice', { 会社: $('n-co').value, 取引先: $('n-client').value, 件名: $('n-title').value, 金額: $('n-amt').value, 原価: $('n-cost').value, 請求予定日: $('n-plan').value, 入金期日: $('n-due').value, メモ: $('n-memo').value })
+    .then(function (j) { applyData(j); toast('登録しました'); });
+}
+function issueInv(id) {
+  var n = prompt('freee請求書番号（空欄可）', '');
+  if (n === null) return;
+  run('updateInvoice', id, { 状態: '発行済', 発行日: todayStr(), freee番号: n || '' }).then(function (j) { applyData(j); toast('発行済みにしました'); });
+}
+function paidInv(id) {
+  var d = prompt('入金日（YYYY-MM-DD）', todayStr());
+  if (d === null) return;
+  run('updateInvoice', id, { 状態: '入金済', 入金日: d }).then(function (j) { applyData(j); toast('入金済みにしました'); });
+}
+function mkFreeeInv(id) {
+  if (!confirm('freeeに請求書の【下書き】を作成します。\n発行はfreee画面で内容を確認してから行ってください。')) return;
+  run('createFreeeInvoice', id).then(function (j) {
+    var r = JSON.parse(j);
+    DATA = r.data; renderAll();
+    openModal('<h3>freeeに下書きを作成しました</h3>'
+      + '<div class="steps">請求書番号：<b>' + esc(r.number) + '</b><br>freeeで内容を確認して発行してください。発行したら台帳の「発行した」を押してください。</div>'
+      + '<div style="display:flex;gap:8px"><button class="btn" onclick="window.open(\'' + r.url + '\');closeModal()">freeeで開いて確認</button>'
+      + '<button class="btn sub" onclick="closeModal()">閉じる</button></div>');
+  });
+}
+function editInv(id) {
+  var v = DATA.invoices.filter(function (x) { return x.id === id; })[0];
+  if (!v) return;
+  var fs = [['取引先', 'text'], ['件名', 'text'], ['金額', 'number'], ['原価', 'number'], ['請求予定日', 'date'], ['発行日', 'date'], ['入金期日', 'date'], ['入金日', 'date'], ['freee番号', 'text'], ['メモ', 'text']];
+  var h = '<h3>請求を編集：' + esc(v['取引先']) + '</h3><div class="form-grid">';
+  fs.forEach(function (f) { h += '<label class="f">' + f[0] + '<input id="e-' + f[0] + '" type="' + f[1] + '" value="' + esc(v[f[0]]) + '"></label>'; });
+  h += '<label class="f">状態<select id="e-状態">';
+  ['未発行', '発行済', '入金済', '取消'].forEach(function (s) { h += '<option ' + (v['状態'] === s ? 'selected' : '') + '>' + s + '</option>'; });
+  h += '</select></label></div><div style="margin-top:13px;display:flex;gap:8px"><button class="btn" onclick="saveEditInv(\'' + id + '\')">保存</button><button class="btn sub" onclick="closeModal()">閉じる</button></div>';
+  openModal(h); window._ef = fs;
+}
+function saveEditInv(id) {
+  var p = { 状態: $('e-状態').value };
+  window._ef.forEach(function (f) { p[f[0]] = $('e-' + f[0]).value; });
+  run('updateInvoice', id, p).then(function (j) { applyData(j); closeModal(); toast('保存しました'); });
+}
+
+/* ---------- 支払（来た請求書） ---------- */
+function renderBill() {
+  var t = todayStr();
+  var wk = d2s(new Date(Date.now() + 7 * 86400000));
+  var me = todayStr().slice(0, 8) + '31';
+  var bills0 = liveBill().filter(inScope);
+  var mail = bills0.filter(function (b) { return b['状態'] === '要確認'; });
+  var open_ = bills0.filter(function (b) { return b['状態'] === '未払' || b['状態'] === '要承認'; });
+
+  function sum(a) { var n = 0; a.forEach(function (b) { n += Number(b['金額']) || 0; }); return n; }
+  var over = open_.filter(function (b) { return b['支払期日'] && b['支払期日'] < t; });
+  var soon = open_.filter(function (b) { return b['支払期日'] && b['支払期日'] >= t && b['支払期日'] <= wk; });
+  var month = open_.filter(function (b) { return b['支払期日'] && b['支払期日'] > wk && b['支払期日'] <= me; });
+  var later = open_.filter(function (b) { return b['支払期日'] && b['支払期日'] > me; });
+  var nodue = open_.filter(function (b) { return !b['支払期日']; });
+  var appr = open_.filter(function (b) { return b['状態'] === '要承認'; });
+
+  var html = '<div class="card"><h2>いつまでにいくら払うか</h2><div class="kpis" style="grid-template-columns:repeat(4,1fr)">'
+    + '<div class="kpi" style="background:#fdecea"><div class="l">🔴 期日超過</div><div class="v minus">' + yen(sum(over)) + '</div><div class="l">' + over.length + '件</div></div>'
+    + '<div class="kpi" style="background:#fdf3e0"><div class="l">今週（' + t.slice(5) + '〜' + wk.slice(5) + '）</div><div class="v warn">' + yen(sum(soon)) + '</div><div class="l">' + soon.length + '件</div></div>'
+    + '<div class="kpi"><div class="l">今月中</div><div class="v">' + yen(sum(month)) + '</div><div class="l">' + month.length + '件</div></div>'
+    + '<div class="kpi"><div class="l">未払 合計</div><div class="v">' + yen(sum(open_)) + '</div><div class="l">' + open_.length + '件' + (appr.length ? '／承認待ち' + appr.length : '') + '</div></div>'
+    + '</div>'
+    + (nodue.length ? '<div style="margin-top:9px;font-size:12px;color:#96610a;background:#fdf3e0;border-radius:7px;padding:7px 10px">⚠️ 支払期日が未入力：' + nodue.length + '件（' + yen(sum(nodue)) + '）— 下の表で期日を入れてください</div>' : '')
+    + '</div>';
+
+  if (mail.length) {
+    html += '<div class="card"><h2>📩 メールで届いた請求書 <span class="sub">' + mail.length + '件・金額と期日を確認して確定</span>'
+      + '<button class="btn mini sub" style="margin-left:auto" onclick="run(\'scanMailNow\').then(function(j){var r=JSON.parse(j);DATA=r.data;renderAll();toast(r.result)})">今すぐメールを見る</button></h2>';
+    mail.forEach(function (b) {
+      html += '<div class="reccard out">'
+        + '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap">'
+        + '<span class="pill p-blue">' + esc(coName(b['会社'])) + ' 宛</span>'
+        + '<b>' + esc(b['支払先']) + '</b>'
+        + '<span class="muted" style="font-size:11.5px">受領 ' + esc(b['受領日']) + '</span>'
+        + (b['メールURL'] ? '<a href="' + esc(b['メールURL']) + '" target="_blank" style="font-size:11.5px">メールを開く ↗</a>' : '')
+        + (b['添付URL'] ? '<a href="' + esc(b['添付URL']) + '" target="_blank" style="font-size:11.5px">請求書を開く ↗</a>' : '') + '</div>'
+        + '<div style="font-size:12px;margin:4px 0 8px">' + esc(b['件名']) + (b['メモ'] ? ' <span class="muted">／' + esc(b['メモ']) + '</span>' : '') + '</div>'
+        + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">'
+        + '<label class="f" style="width:130px">金額<input id="mc-amt-' + b.id + '" type="number" value="' + esc(b['金額'] || '') + '"></label>'
+        + '<label class="f" style="width:150px">支払期日<input id="mc-due-' + b.id + '" type="date" value="' + esc(b['支払期日'] || '') + '"></label>'
+        + '<label class="f" style="width:150px">費目' + catSelect('mc-cat-' + b.id, b['費目']) + '</label>'
+        + '<button class="btn green mini" onclick="confirmMail(\'' + b.id + '\')">支払として確定</button>'
+        + '<button class="btn red mini" onclick="run(\'updateBill\',\'' + b.id + '\',{状態:\'取消\'}).then(applyData)">請求書じゃない</button>'
+        + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  ['A', 'B'].forEach(function (co) {
+    if (CO !== 'ALL' && CO !== co) return;
+    var list = open_.filter(function (b) { return b['会社'] === co; });
+    html += '<div class="card"><h2>' + esc(coName(co)) + ' 宛の請求書 <span class="sub">' + list.length + '件・' + yen(sum(list)) + '</span></h2>';
+    if (!list.length) { html += '<div class="empty">未払はありません 👍</div></div>'; return; }
+    html += '<div class="tablewrap"><table><tr><th style="width:96px">支払期日</th><th style="width:74px">あと</th>'
+      + '<th>どこから（支払先）</th><th>内容</th><th style="width:112px">費目</th><th class="num" style="width:110px">金額</th><th style="width:150px">操作</th></tr>';
+    var groups = [
+      ['🔴 期日超過', list.filter(function (b) { return b['支払期日'] && b['支払期日'] < t; }), '#fdecea'],
+      ['今週', list.filter(function (b) { return b['支払期日'] && b['支払期日'] >= t && b['支払期日'] <= wk; }), '#fdf3e0'],
+      ['今月中', list.filter(function (b) { return b['支払期日'] && b['支払期日'] > wk && b['支払期日'] <= me; }), ''],
+      ['来月以降', list.filter(function (b) { return b['支払期日'] && b['支払期日'] > me; }), ''],
+      ['期日が未入力', list.filter(function (b) { return !b['支払期日']; }), '#f0f3f7']
+    ];
+    groups.forEach(function (g) {
+      if (!g[1].length) return;
+      html += '<tr style="background:#eef1f5"><td colspan="5" style="font-weight:700;font-size:11.5px">' + g[0] + '（' + g[1].length + '件）</td>'
+        + '<td class="num" style="font-weight:700;font-size:11.5px">' + yen(sum(g[1])) + '</td><td></td></tr>';
+      g[1].sort(function (a, b) { return (a['支払期日'] || '9999') < (b['支払期日'] || '9999') ? -1 : 1; }).forEach(function (b) {
+        var days = b['支払期日'] ? Math.round((new Date(b['支払期日']) - new Date(t)) / 86400000) : null;
+        var dtxt = days === null ? '—' : (days < 0 ? '<span class="minus">' + (-days) + '日超過</span>' : days === 0 ? '<span class="minus">今日</span>' : days + '日');
+        html += '<tr' + (g[2] ? ' style="background:' + g[2] + '"' : '') + '>'
+          + '<td style="font-weight:600">' + esc(b['支払期日'] || '未設定') + '</td>'
+          + '<td style="font-size:11.5px">' + dtxt + '</td>'
+          + '<td><b>' + esc(b['支払先']) + '</b>' + (b['状態'] === '要承認' ? ' <span class="pill p-red">要承認</span>' : '') + '</td>'
+          + '<td style="font-size:11.5px">' + esc(String(b['件名']).slice(0, 46)) + '</td>'
+          + '<td><span class="pill p-gray">' + esc(b['費目'] || '未分類') + '</span></td>'
+          + '<td class="num" style="font-weight:700">' + yen(b['金額']) + '</td>'
+          + '<td><div class="row-actions">'
+          + (b['状態'] === '要承認' ? '<button class="btn mini" onclick="run(\'approveBill\',\'' + b.id + '\').then(applyData)">承認</button>' : '<button class="btn mini green" onclick="payBill(\'' + b.id + '\')">払った</button>')
+          + '<button class="btn mini sub" onclick="editBill(\'' + b.id + '\')">編集</button></div></td></tr>';
+      });
+    });
+    html += '</table></div></div>';
+  });
+
+  html += '<div class="card"><h2>📷 スクショ・PDFで登録 <span class="sub">撮った請求書を投げるだけ。金額と期日を自動で読み取ります</span></h2>'
+    + '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:end">'
+    + coSelect('u-co')
+    + '<label class="f" style="flex:1;min-width:220px">請求書の画像 / PDF<input id="u-file" type="file" accept="image/*,application/pdf"></label>'
+    + '<button class="btn" onclick="uploadInv()">読み取って登録</button></div>'
+    + '<div class="muted" style="font-size:11px;margin-top:7px">Googleドライブの「請求書 / 会社名 / 年月」に自動で保管します。読み取り結果は上の「メールで届いた請求書」欄に<b>要確認</b>で並ぶので、金額を確認して確定してください</div></div>';
+
+  html += '<div class="card"><h2>来た請求書を手で登録 <span class="sub">メール以外で受け取ったとき</span></h2><div class="form-grid">'
+    + coSelect('b-co')
+    + '<label class="f">どこから（支払先）<input id="b-payee" placeholder="◯◯株式会社"></label>'
+    + '<label class="f">内容<input id="b-title" placeholder="8月分 広告運用費"></label>'
+    + '<label class="f">金額（税込）<input id="b-amt" type="number" inputmode="numeric"></label>'
+    + '<label class="f">支払期日<input id="b-due" type="date"></label>'
+    + '<label class="f">費目' + catSelect('b-cat', '') + '</label>'
+    + '<label class="f">受領日<input id="b-recv" type="date" value="' + todayStr() + '"></label>'
+    + '<label class="f">メモ<input id="b-memo"></label>'
+    + '</div><div style="margin-top:11px"><button class="btn" onclick="addBillNew()">登録する</button></div></div>';
+
+  var paid = bills0.filter(function (b) { return b['状態'] === '支払済'; }).sort(function (a, b) { return a['支払日'] > b['支払日'] ? -1 : 1; }).slice(0, 15);
+  html += '<div class="card"><h2>支払済み <span class="sub">直近15件</span></h2>';
+  if (!paid.length) html += '<div class="empty">まだありません</div>';
+  else {
+    html += '<div class="tablewrap"><table><tr><th>支払日</th><th>会社</th><th>支払先</th><th>費目</th><th class="num">金額</th></tr>';
+    paid.forEach(function (b) {
+      html += '<tr><td>' + esc(b['支払日']) + '</td><td>' + esc(coName(b['会社'])) + '</td><td>' + esc(b['支払先']) + '</td>'
+        + '<td><span class="pill p-gray">' + esc(b['費目'] || '未分類') + '</span></td><td class="num">' + yen(b['金額']) + '</td></tr>';
+    });
+    html += '</table></div>';
+  }
+  $('sec-bill').innerHTML = html + '</div>';
+}
+
+var CATS = ['広告費', '外注・業務委託', '人件費・報酬', 'ツール・SaaS', '士業・専門家', '家賃・光熱', '税金・公課', '借入返済', 'クレジットカード', 'その他'];
+function catSelect(id, cur) {
+  var h = '<select id="' + id + '"><option value="">（自動判定）</option>';
+  CATS.forEach(function (c) { h += '<option ' + (cur === c ? 'selected' : '') + '>' + c + '</option>'; });
+  return h + '</select>';
+}
+function uploadInv() {
+  var f = $('u-file').files[0];
+  if (!f) { toast('ファイルを選んでください'); return; }
+  if (f.size > 9000000) { toast('9MBを超えています'); return; }
+  var co = $('u-co').value;
+  var fr = new FileReader();
+  busy(true);
+  fr.onload = function () {
+    var b64 = String(fr.result).split(',')[1];
+    run('uploadInvoice', { co: co, name: f.name, mime: f.type, data: b64 }).then(function (j) {
+      var r = JSON.parse(j);
+      DATA = r.data; renderAll(); showTab('bill');
+      toast(r.result);
+    });
+  };
+  fr.readAsDataURL(f);
+}
+function addBillNew() {
+  if (!$('b-payee').value || !$('b-amt').value) { toast('支払先と金額は必須です'); return; }
+  run('addBill', { 会社: $('b-co').value, 支払先: $('b-payee').value, 件名: $('b-title').value, 金額: $('b-amt').value, 受領日: $('b-recv').value, 支払期日: $('b-due').value, 費目: $('b-cat').value, メモ: $('b-memo').value })
+    .then(function (j) { applyData(j); toast('登録しました'); });
+}
+function payBill(id) {
+  var d = prompt('支払日（YYYY-MM-DD）', todayStr());
+  if (d === null) return;
+  run('updateBill', id, { 状態: '支払済', 支払日: d }).then(function (j) { applyData(j); toast('支払済みにしました'); });
+}
+function editBill(id) {
+  var b = DATA.bills.filter(function (x) { return x.id === id; })[0];
+  if (!b) return;
+  var fs = [['支払先', 'text'], ['件名', 'text'], ['金額', 'number'], ['受領日', 'date'], ['支払期日', 'date'], ['支払日', 'date'], ['メモ', 'text']];
+  var h = '<h3>支払を編集：' + esc(b['支払先']) + '</h3><div class="form-grid">';
+  fs.forEach(function (f) { h += '<label class="f">' + f[0] + '<input id="eb-' + f[0] + '" type="' + f[1] + '" value="' + esc(b[f[0]]) + '"></label>'; });
+  h += '<label class="f">費目' + catSelect('eb-費目', b['費目']) + '</label>';
+  h += '<label class="f">状態<select id="eb-状態">';
+  ['未払', '要承認', '支払済', '取消'].forEach(function (st) { h += '<option ' + (b['状態'] === st ? 'selected' : '') + '>' + st + '</option>'; });
+  h += '</select></label></div><div style="margin-top:13px;display:flex;gap:8px"><button class="btn" onclick="saveEditBill(\'' + id + '\')">保存</button><button class="btn sub" onclick="closeModal()">閉じる</button></div>';
+  openModal(h); window._ebf = fs;
+}
+function saveEditBill(id) {
+  var p = { 状態: $('eb-状態').value, 費目: $('eb-費目').value };
+  window._ebf.forEach(function (f) { p[f[0]] = $('eb-' + f[0]).value; });
+  run('updateBill', id, p).then(function (j) { applyData(j); closeModal(); toast('保存しました'); });
+}
+function confirmMail(id) {
+  var amt = $('mc-amt-' + id).value;
+  if (!amt || Number(amt) <= 0) { toast('金額を入れてください'); return; }
+  run('confirmMailBill', id, { 金額: amt, 支払期日: $('mc-due-' + id).value })
+    .then(function (j) { applyData(j); toast('支払として登録しました'); });
+}
+function addBillNew() {
+  if (!$('b-payee').value || !$('b-amt').value) { toast('支払先と金額は必須です'); return; }
+  run('addBill', { 会社: $('b-co').value, 支払先: $('b-payee').value, 件名: $('b-title').value, 金額: $('b-amt').value, 受領日: $('b-recv').value, 支払期日: $('b-due').value, メモ: $('b-memo').value })
+    .then(function (j) { applyData(j); toast('登録しました'); });
+}
+function payBill(id) {
+  var d = prompt('支払日（YYYY-MM-DD）', todayStr());
+  if (d === null) return;
+  run('updateBill', id, { 状態: '支払済', 支払日: d }).then(function (j) { applyData(j); toast('支払済みにしました'); });
+}
+function editBill(id) {
+  var b = DATA.bills.filter(function (x) { return x.id === id; })[0];
+  if (!b) return;
+  var fs = [['支払先', 'text'], ['件名', 'text'], ['金額', 'number'], ['受領日', 'date'], ['支払期日', 'date'], ['支払日', 'date'], ['メモ', 'text']];
+  var h = '<h3>支払を編集：' + esc(b['支払先']) + '</h3><div class="form-grid">';
+  fs.forEach(function (f) { h += '<label class="f">' + f[0] + '<input id="eb-' + f[0] + '" type="' + f[1] + '" value="' + esc(b[f[0]]) + '"></label>'; });
+  h += '<label class="f">状態<select id="eb-状態">';
+  ['未払', '支払済', '取消'].forEach(function (s) { h += '<option ' + (b['状態'] === s ? 'selected' : '') + '>' + s + '</option>'; });
+  h += '</select></label></div><div style="margin-top:13px;display:flex;gap:8px"><button class="btn" onclick="saveEditBill(\'' + id + '\')">保存</button><button class="btn sub" onclick="closeModal()">閉じる</button></div>';
+  openModal(h); window._ebf = fs;
+}
+function saveEditBill(id) {
+  var p = { 状態: $('eb-状態').value };
+  window._ebf.forEach(function (f) { p[f[0]] = $('eb-' + f[0]).value; });
+  run('updateBill', id, p).then(function (j) { applyData(j); closeModal(); toast('保存しました'); });
+}
+
+/* ---------- 消し込み ---------- */
+function renderRec() {
+  var pend = pendingTxns().filter(inScope);
+  var html = '<div class="card"><h2>明細を貼り付け <span class="sub">CSV / タブ区切り</span></h2><div class="form-grid" style="margin-bottom:9px">'
+    + coSelect('p-co')
+    + '<label class="f">経路<select id="p-src"><option>住信SBI</option><option>GMOあおぞら</option><option>UnivaPay</option><option>手動</option></select></label>'
+    + '<label class="f">入出<select id="p-io"><option value="入">入金</option><option value="出">出金</option></select></label>'
+    + '</div><label class="f">明細（1行1件・日付と金額を自動判別）<textarea id="p-text" class="paste" placeholder="2026-08-01,550000,振込 カ）サンプルショウジ"></textarea></label>'
+    + '<div style="margin-top:9px"><button class="btn" onclick="pasteTxns()">取り込む</button>'
+    + (DATA.freee && DATA.freee.hasAnyToken ? ' <button class="btn sub" onclick="fSyncNow()">🔄 freeeから取得</button>' : '')
+    + '</div></div>';
+
+  html += '<div class="card"><h2>未消込 <span class="sub">' + pend.length + '件</span></h2>';
+  if (!pend.length) html += '<div class="empty">未消込はありません 👍</div>';
+  else {
+    var openInv = liveInv().filter(function (v) { return v['状態'] === '発行済' || v['状態'] === '未発行'; });
+    var openBill = liveBill().filter(function (b) { return b['状態'] === '未払'; });
+    pend.forEach(function (t) {
+      var isOut = t['入出'] === '出';
+      var pool = (isOut ? openBill : openInv).filter(function (x) { return x['会社'] === t['会社']; });
+      var cands = pool.filter(function (x) { return Number(x['金額']) === Number(t['金額']); });
+      html += '<div class="reccard ' + (isOut ? 'out' : 'in') + '">'
+        + '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap"><b class="' + (isOut ? 'minus' : 'plus') + '" style="font-size:15px">' + (isOut ? '−' : '＋') + yen(t['金額']) + '</b>'
+        + '<span class="muted" style="font-size:11.5px">' + esc(t['日付']) + '・' + esc(coName(t['会社'])) + '・' + esc(t['経路']) + '</span></div>'
+        + '<div style="font-size:12px;margin:4px 0 8px">' + esc(t['摘要']) + '</div>';
+      if (cands.length) {
+        html += '<div style="font-size:11px;font-weight:700;color:#0b7a3e;margin-bottom:5px">金額一致 ' + cands.length + '件</div>';
+        cands.forEach(function (x) {
+          html += '<button class="btn mini green" style="margin:0 6px 6px 0" onclick="doRec(\'' + t.id + '\',\'' + x.id + '\')">✓ ' + esc(x[isOut ? '支払先' : '取引先']) + '</button>';
+        });
+      }
+      html += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+        + '<select id="sel-' + t.id + '" style="padding:6px;border:1px solid #d3d9e2;border-radius:7px;font-size:12px;max-width:290px"><option value="">' + (isOut ? '支払' : '請求') + 'を選ぶ…</option>';
+      pool.forEach(function (x) { html += '<option value="' + x.id + '">' + esc(x[isOut ? '支払先' : '取引先']) + ' ' + yen(x['金額']) + '</option>'; });
+      html += '</select><button class="btn mini sub" onclick="recSel(\'' + t.id + '\')">消込</button>'
+        + '<button class="btn mini red" onclick="run(\'ignoreTxn\',\'' + t.id + '\').then(applyData)">対象外</button></div></div>';
+    });
+  }
+  html += '</div>';
+
+  var nolink = DATA.txns.filter(function (t) { return t['状態'] === '台帳なし'; }).filter(inScope);
+  html += '<div class="card"><h2>台帳に該当なし <span class="sub">' + nolink.length + '件・請求/支払に登録が無い入出金（給与・カード払い等）</span></h2>';
+  if (!nolink.length) html += '<div class="empty">ありません</div>';
+  else {
+    html += '<details><summary style="cursor:pointer;font-size:12px;color:#2864f0">開いて確認する（あとから台帳に紐付けもできます）</summary>'
+      + '<div class="tablewrap" style="margin-top:8px"><table><tr><th>日付</th><th>会社</th><th class="num">金額</th><th>摘要</th><th>費目（推定）</th></tr>';
+    nolink.slice(-60).reverse().forEach(function (t) {
+      html += '<tr><td>' + esc(t['日付']) + '</td><td>' + esc(coName(t['会社'])) + '</td>'
+        + '<td class="num ' + (t['入出'] === '出' ? 'minus' : 'plus') + '">' + (t['入出'] === '出' ? '−' : '+') + yen(t['金額']) + '</td>'
+        + '<td style="font-size:11.5px">' + esc(t['摘要']) + '</td>'
+        + '<td><span class="pill p-gray">' + esc(guessCat(t['摘要'])) + '</span></td></tr>';
+    });
+    html += '</table></div></details>';
+  }
+  html += '</div>';
+
+  var done = DATA.txns.filter(function (t) { return t['状態'] === '消込済' || t['状態'] === '対象外'; }).filter(inScope).slice(-12).reverse();
+  html += '<div class="card"><h2>処理済み <span class="sub">直近12件</span></h2>';
+  if (!done.length) html += '<div class="empty">まだありません</div>';
+  else {
+    html += '<div class="tablewrap"><table><tr><th>日付</th><th class="num">金額</th><th>摘要</th><th>状態</th></tr>';
+    done.forEach(function (t) {
+      html += '<tr><td>' + esc(t['日付']) + '</td><td class="num ' + (t['入出'] === '出' ? 'minus' : 'plus') + '">' + (t['入出'] === '出' ? '−' : '') + yen(t['金額']) + '</td><td style="font-size:11.5px">' + esc(t['摘要']) + '</td><td>' + pill(t['状態'] === '消込済' ? '入金済' : '取消').replace('入金済', '消込済').replace('取消', t['状態']) + '</td></tr>';
+    });
+    html += '</table></div>';
+  }
+  $('sec-rec').innerHTML = html + '</div>';
+}
+function parseLine(line) {
+  var parts = line.split(/[\t,]/).map(function (s) { return s.replace(/^"|"$/g, '').trim(); });
+  if (parts.length < 2) return null;
+  var date = '', nums = [], descs = [];
+  parts.forEach(function (p) {
+    var dm = p.match(/^(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})/);
+    if (dm && !date) { date = dm[1] + '-' + ('0' + dm[2]).slice(-2) + '-' + ('0' + dm[3]).slice(-2); return; }
+    var n = p.replace(/[¥,円\s]/g, '');
+    if (/^\d+$/.test(n) && Number(n) > 0) { nums.push(Number(n)); return; }
+    if (p) descs.push(p);
+  });
+  if (!date || !nums.length) return null;
+  return { 日付: date, 金額: nums[0], 摘要: descs.join(' ') };
+}
+function pasteTxns() {
+  var list = [];
+  $('p-text').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (l) {
+    var r = parseLine(l);
+    if (r) { r['会社'] = $('p-co').value; r['経路'] = $('p-src').value; r['入出'] = $('p-io').value; list.push(r); }
+  });
+  if (!list.length) { toast('読み取れる行がありません（日付と金額が必要）'); return; }
+  run('addTxns', list).then(function (j) { var r = JSON.parse(j); DATA = r.data; renderAll(); toast('取込 ' + r.added + '件 / スキップ ' + r.skipped + '件'); });
+}
+function doRec(t, x) { run('reconcile', t, x).then(function (j) { applyData(j); toast('消し込みました'); }); }
+function recSel(t) { var v = $('sel-' + t).value; if (!v) { toast('相手を選んでください'); return; } doRec(t, v); }
+
+/* ---------- PL（費目別） ---------- */
+var CAT_RULES = [
+  ['広告費', ['facebk', 'facebook', 'meta platforms', '広告', 'google ads', 'yahoo', 'tiktok', 'アフィリ', 'サルクル', 'sarucrew', 'vexl', 'forest', 'sizebook', 'ノーブル']],
+  ['ツール・SaaS', ['anthropic', 'openai', 'microsoft', 'google *', 'google one', 'google cloud', 'gyazo', 'apify', 'higgsfield', 'figma', 'adobe', 'zoom', 'notion', 'chatwork', 'slack', 'canva', 'apple', 'itunes', 'ノート　', 'kashika', 'maneql', 'ｍａｎｅｑｌ', 'jokigen', 'クラウドサイン', 'lステップ', 'サブスク', 'ライセンス', '利用料']],
+  ['旅費・交通', ['luup', 'タイムズ', '新幹線', 'タクシー', 'ホテル', 'hotel', 'millennials', '航空', 'suica', 'pasmo']],
+  ['会議・交際', ['なか卯', '鳥貴族', '居酒屋', 'スターバックス', 'starbucks', 'ドトール', 'カフェ', 'レストラン', '食堂']],
+  ['外注・業務委託', ['業務委託', '外注', '制作', 'デザイン', 'ライティング', '開発']],
+  ['人件費・報酬', ['報酬', '給与', '給料', '賞与', '社会保険', '労務', '社労士', 'キユウヨ']],
+  ['士業・専門家', ['税理士', '会計', '弁護士', '司法書士', '行政書士', '法律事務所']],
+  ['家賃・光熱', ['家賃', '賃料', '管理費', '電気', 'ガス', '水道', '通信', 'ドコモ', 'ソフトバンク', 'kddi']],
+  ['税金・公課', ['国税', '地方税', '法人税', '消費税', '源泉', '年金', '健康保険']],
+  ['借入返済', ['公庫', '返済', '融資', 'リース']]
+];
+function guessCat(text) {
+  var hay = String(text || '').toLowerCase();
+  var learned = DATA.catRules || [];
+  for (var L = 0; L < learned.length; L++) {
+    if (learned[L][0] && hay.indexOf(String(learned[L][0]).toLowerCase()) >= 0) return learned[L][1];
+  }
+  for (var i = 0; i < CAT_RULES.length; i++) {
+    for (var j = 0; j < CAT_RULES[i][1].length; j++) {
+      if (hay.indexOf(CAT_RULES[i][1][j]) >= 0) return CAT_RULES[i][0];
+    }
+  }
+  return 'その他';
+}
+function lastMonths(n) {
+  var out = [], d = new Date();
+  for (var i = n - 1; i >= 0; i--) {
+    var m = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    out.push(m.getFullYear() + '-' + ('0' + (m.getMonth() + 1)).slice(-2));
+  }
+  return out;
+}
+function renderPL() {
+  var pl = DATA.pl;
+  if (!pl) { $('sec-pl').innerHTML = '<div class="card"><div class="empty">集計データがありません</div></div>'; return; }
+  var months = pl.months;
+  var html = '<div class="card"><h2>📈 費目別PL <span class="sub">freeeの実際の入出金ベース（現金主義）・直近6ヶ月</span></h2>'
+    + '<div class="muted" style="font-size:11px">摘要から費目を自動判定しています。「その他」の内訳から費目を選んで登録すると、以後その相手先は自動で分類されます</div></div>';
+
+  cos().forEach(function (co) {
+    var d = pl.co[co];
+    if (!d) return;
+    var cats = Object.keys(d.exp).sort();
+    var hasData = months.some(function (m) { return d.inc[m]; }) || cats.length;
+    html += '<div class="card"><h2>' + esc(coName(co)) + '</h2>';
+    if (!hasData) { html += '<div class="empty">この期間のデータがありません</div></div>'; return; }
+
+    html += '<div class="tablewrap"><table><tr><th>項目</th>';
+    months.forEach(function (m) { html += '<th class="num">' + m.slice(2) + '</th>'; });
+    html += '<th class="num" style="background:#eef1f5">合計</th></tr>';
+
+    var incT = 0;
+    html += '<tr style="background:#e6f6ec"><td><b>入金</b></td>';
+    months.forEach(function (m) { incT += d.inc[m] || 0; html += '<td class="num plus">' + (d.inc[m] ? yen(d.inc[m]) : '—') + '</td>'; });
+    html += '<td class="num plus" style="background:#eef1f5"><b>' + yen(incT) + '</b></td></tr>';
+
+    var expT = {}, grand = 0;
+    months.forEach(function (m) { expT[m] = 0; });
+    cats.forEach(function (c) {
+      var rowT = 0;
+      html += '<tr><td>' + esc(c) + '</td>';
+      months.forEach(function (m) {
+        var v = d.exp[c][m] || 0;
+        rowT += v; expT[m] += v;
+        html += '<td class="num">' + (v ? yen(v) : '—') + '</td>';
+      });
+      grand += rowT;
+      html += '<td class="num" style="background:#eef1f5"><b>' + yen(rowT) + '</b></td></tr>';
+    });
+    html += '<tr style="background:#fdecea"><td><b>支出 計</b></td>';
+    months.forEach(function (m) { html += '<td class="num minus"><b>' + (expT[m] ? yen(expT[m]) : '—') + '</b></td>'; });
+    html += '<td class="num minus" style="background:#eef1f5"><b>' + yen(grand) + '</b></td></tr>';
+
+    html += '<tr style="background:#f7f9fc"><td><b>差引（現金増減）</b></td>';
+    months.forEach(function (m) {
+      var x = (d.inc[m] || 0) - expT[m];
+      html += '<td class="num" style="font-weight:700' + (x < 0 ? ';color:#e5533d' : ';color:#0f9d58') + '">' + yen(x) + '</td>';
+    });
+    var xT = incT - grand;
+    html += '<td class="num" style="background:#eef1f5;font-weight:700' + (xT < 0 ? ';color:#e5533d' : ';color:#0f9d58') + '">' + yen(xT) + '</td></tr>';
+    html += '</table></div>';
+
+    if (d.etc && d.etc.length) {
+      html += '<details style="margin-top:10px" open><summary style="cursor:pointer;font-size:12px;color:#2864f0">「その他」の内訳（金額順' + d.etc.length + '件）— 費目を選んで登録すると以後自動で分類されます</summary>'
+        + '<div class="tablewrap" style="margin-top:8px"><table><tr><th>摘要（相手先）</th><th class="num">件数</th><th class="num">合計</th><th style="width:150px">費目を決める</th><th style="width:120px"></th></tr>';
+      d.etc.forEach(function (e, i) {
+        var rid = co + '-' + i;
+        html += '<tr><td style="font-size:11.5px">' + esc(e.k) + '</td><td class="num">' + e.n + '</td><td class="num minus">' + yen(e.amt) + '</td>'
+          + '<td>' + catSelect('cr-' + rid, '') + '</td>'
+          + '<td><button class="btn mini" onclick="learnCat(\'cr-' + rid + '\',\'' + rid + '\')">登録</button></td></tr>';
+        PL_KEYS[rid] = e.k;
+      });
+      html += '</table></div></details>';
+    }
+    html += '</div>';
+  });
+  $('sec-pl').innerHTML = html;
+}
+var PL_KEYS = {};
+function learnCat(selId, rid) {
+  var v = $(selId).value;
+  if (!v) { toast('費目を選んでください'); return; }
+  var kw = PL_KEYS[rid];
+  if (!kw) { toast('対象が特定できません'); return; }
+  run('saveCatRule', kw, v).then(function (j) { applyData(j); toast('「' + kw.slice(0, 14) + '」を ' + v + ' に登録しました'); });
+}
+
+/* ---------- 設定 ---------- */
+function renderCfg() {
+  var s = DATA.settings;
+  var html = '<div class="card"><h2>会社・目標</h2><div class="form-grid">'
+    + '<label class="f">会社A名<input id="c-会社A名" value="' + esc(s['会社A名'] || '') + '"></label>'
+    + '<label class="f">会社B名<input id="c-会社B名" value="' + esc(s['会社B名'] || '') + '"></label>'
+    + '<label class="f">A 固定費/月<input id="c-A_固定費月" type="number" value="' + esc(s['A_固定費月'] || '0') + '"></label>'
+    + '<label class="f">B 固定費/月<input id="c-B_固定費月" type="number" value="' + esc(s['B_固定費月'] || '0') + '"></label>'
+    + '<label class="f">A 粗利目標/月<input id="c-A_粗利目標月" type="number" value="' + esc(s['A_粗利目標月'] || '0') + '"></label>'
+    + '<label class="f">B 粗利目標/月<input id="c-B_粗利目標月" type="number" value="' + esc(s['B_粗利目標月'] || '0') + '"></label>'
+    + '<label class="f">平均粗利/件（空欄=自動）<input id="c-平均粗利件単価_手動" value="' + esc(s['平均粗利件単価_手動'] || '') + '"></label>'
+    + '</div><div style="margin-top:11px"><button class="btn" onclick="saveCfg()">保存</button></div></div>';
+
+  html += '<div class="card"><h2>📩 メール取込・支払承認</h2><div class="form-grid">'
+    + '<label class="f">A 請求書が届くメール<input id="c-A_受信メール" value="' + esc(s['A_受信メール'] || '') + '"></label>'
+    + '<label class="f">B 請求書が届くメール<input id="c-B_受信メール" value="' + esc(s['B_受信メール'] || '') + '"></label>'
+    + '<label class="f">A 承認が要る金額（円以上）<input id="c-A_承認閾値" type="number" value="' + esc(s['A_承認閾値'] || '0') + '"></label>'
+    + '<label class="f">B 承認が要る金額（円以上）<input id="c-B_承認閾値" type="number" value="' + esc(s['B_承認閾値'] || '0') + '"></label>'
+    + '<label class="f">メール取込<select id="c-メール取込ON"><option ' + (s['メール取込ON'] !== 'いいえ' ? 'selected' : '') + '>はい</option><option ' + (s['メール取込ON'] === 'いいえ' ? 'selected' : '') + '>いいえ</option></select></label>'
+    + '<label class="f">遡り日数<input id="c-メール遡り日数" type="number" value="' + esc(s['メール遡り日数'] || '21') + '"></label>'
+    + '<label class="f">件名の必須語（これが入っていれば請求書）<input id="c-件名の必須語" value="' + esc(s['件名の必須語'] || '請求書') + '"></label>'
+    + '</div><div style="margin-top:9px"><label class="f">自社ドメイン・自社名（差出人にこれが入れば自社発信＝除外）<input id="c-自社ドメイン" value="' + esc(s['自社ドメイン'] || '') + '"></label>'
+    + '<label class="f" style="margin-top:7px">件名の除外語（カンマ区切り）<input id="c-メール除外語" value="' + esc(s['メール除外語'] || '') + '"></label></div>'
+    + '<div style="margin-top:9px;border-top:1px solid #eef1f5;padding-top:9px">'
+    + '<label class="f">消し込みで無視する摘要（振込手数料・利息など）<input id="c-消込ノイズ語" value="' + esc(s['消込ノイズ語'] || '') + '"></label>'
+    + '<label class="f" style="margin-top:7px">消し込みの最低額（これ未満は無視）<input id="c-消込最低額" type="number" value="' + esc(s['消込最低額'] || '0') + '"></label></div>'
+    + '<div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn" onclick="saveMailCfg()">保存</button>'
+    + '<button class="btn sub" onclick="run(\'scanMailNow\').then(function(j){var r=JSON.parse(j);DATA=r.data;renderAll();toast(r.result)})">今すぐメールを見る</button>'
+    + '<button class="btn red" onclick="if(confirm(\'まだ確定していない「要確認」だけを消して、いまの条件で取り直します。確定済みの支払は消えません。\'))run(\'purgeMailDrafts\').then(function(j){var r=JSON.parse(j);DATA=r.data;renderAll();toast(r.result)})">条件を変えて取り直す</button></div>'
+    + '<div class="muted" style="font-size:11px;margin-top:7px">'
+    + (DATA.freee && DATA.freee.mailLastScan ? '最終スキャン: ' + esc(DATA.freee.mailLastScan) + '<br>' : '')
+    + '毎時、直近21日の「請求書 / ご請求 / invoice / お支払い」を含むメールを検出し、支払タブに<b>要確認</b>で並べます。金額は本文から推定するので必ず目視確認してください。<br>'
+    + 'B（bill.kiraku@gmail.com）は<b>info@taisyoku-smile.com に自動転送</b>の設定が必要です（Gmail設定→メール転送）。転送しても宛先で会社を判別します。</div></div>';
+
+  html += renderFreeeCard();
+
+  html += '<div class="card"><h2>現金残高</h2><div id="bal-rows">';
+  DATA.balances.forEach(function (b, i) {
+    html += '<div class="balrow"><span class="name">' + esc(coName(b['会社'])) + '・' + esc(b['口座']) + '</span>'
+      + '<input class="amt" type="number" id="bal-' + i + '" value="' + esc(b['残高']) + '"><span class="muted" style="font-size:10px">' + esc(b['更新日時'] || '') + '</span></div>';
+  });
+  html += '</div><button class="btn" onclick="saveBal()">残高を保存</button>'
+    + '<div class="muted" style="font-size:11px;margin-top:7px">🔄付きはfreeeが毎時自動更新。二重計上を避けるため、freee接続後は同じ口座の手動行を0にしてください</div></div>';
+
+  html += '<div class="card"><h2>毎朝アラート（Chatwork）</h2><div class="form-grid">'
+    + '<label class="f">ルームID<input id="c-CHATWORK_ROOM" value="' + esc(s['CHATWORK_ROOM'] || '') + '"></label>'
+    + '<label class="f">APIトークン' + (DATA.hasChatworkToken ? '（設定済・変更時のみ）' : '') + '<input id="cw-token" type="password" placeholder="' + (DATA.hasChatworkToken ? '********' : '未設定') + '"></label>'
+    + '</div><div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn" onclick="saveCw()">保存</button>'
+    + '<button class="btn sub" onclick="run(\'setupTriggers\').then(toast)">自動化トリガーを設置</button>'
+    + '<button class="btn sub" onclick="run(\'testAlert\').then(function(m){alert(m)})">テスト送信</button></div>'
+    + '<div class="muted" style="font-size:11px;margin-top:7px">通知：請求書の未発行・入金の期日超過・支払期日超過・今週の支払・未消込・原価未入力。差分ゼロの日は送りません</div></div>';
+  $('sec-cfg').innerHTML = html;
+}
+function saveCfg() {
+  var kv = {};
+  ['会社A名', '会社B名', 'A_固定費月', 'B_固定費月', 'A_粗利目標月', 'B_粗利目標月', '平均粗利件単価_手動'].forEach(function (k) { kv[k] = $('c-' + k).value; });
+  run('saveSettings', kv).then(function (j) { applyData(j); toast('保存しました'); });
+}
+function saveMailCfg() {
+  var kv = {};
+  ['A_受信メール', 'B_受信メール', 'A_承認閾値', 'B_承認閾値', 'メール取込ON', 'メール遡り日数', '自社ドメイン', 'メール除外語', '件名の必須語', '消込ノイズ語', '消込最低額'].forEach(function (k) { kv[k] = $('c-' + k).value; });
+  run('saveSettings', kv).then(function (j) { applyData(j); toast('保存しました'); });
+}
+function saveBal() {
+  var list = DATA.balances.map(function (b, i) { return { 会社: b['会社'], 口座: b['口座'], 残高: $('bal-' + i).value }; });
+  run('saveBalances', list).then(function (j) { applyData(j); toast('残高を保存しました'); });
+}
+function saveCw() {
+  var jobs = [run('saveSettings', { CHATWORK_ROOM: $('c-CHATWORK_ROOM').value })];
+  var tok = $('cw-token').value;
+  if (tok) jobs.push(run('saveChatworkToken', tok));
+  Promise.all(jobs).then(function (r) { applyData(r[r.length - 1]); toast('保存しました'); });
+}
+
+/* ---------- freee ---------- */
+function renderFreeeCard() {
+  var f = DATA.freee || {};
+  var html = '<div class="card"><h2>🔄 freee連携 <span class="sub">会社ごとに接続。入出金・残高・来た請求書を毎時自動取込</span></h2>';
+  html += '<div style="font-size:12px;margin-bottom:10px" class="muted">'
+    + (f.lastSync ? '最終同期 ' + esc(f.lastSync) + '：' + esc(f.lastSyncResult) : 'まだ同期していません') + '</div>';
+  html += '<div class="grid2">';
+  ['A', 'B'].forEach(function (co) { html += freeeCoBlock(co); });
+  html += '</div><div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn" onclick="fSaveMap()">口座マッピングを保存</button>'
+    + '<button class="btn green" onclick="fSyncNow()">今すぐ同期</button></div>';
+  return html + '</div>';
+}
+
+function freeeCoBlock(co) {
+  var f = DATA.freee || {};
+  var st = f[co] || {};
+  var cur = (f.map && f.map[co]) || {};
+  var h = '<div style="border:1px solid #e1e6ed;border-radius:9px;padding:11px">'
+    + '<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">'
+    + '<span style="font-weight:700;font-size:13px">' + esc(coName(co)) + '</span>'
+    + (st.hasToken ? '<span class="pill p-green">接続済み</span>' : st.hasApp ? '<span class="pill p-amber">認可待ち</span>' : '<span class="pill p-gray">未設定</span>')
+    + '</div>';
+
+  if (!st.hasApp) {
+    h += '<div class="steps">① <a href="https://app.secure.freee.co.jp/developers/applications" target="_blank">freee開発者ページ</a>に<b>' + esc(coName(co)) + 'のfreeeアカウントでログイン</b>して「新規アプリを作成」<br>'
+      + '② コールバックURLに <code style="background:#f0f3f7;padding:1px 4px;border-radius:4px">http://localhost:8089/callback</code><br>'
+      + '③ アプリ詳細の Client ID / Secret を貼って保存</div>';
+  }
+  h += '<div class="form-grid"><label class="f">Client ID<input id="f-cid-' + co + '" value="' + esc(st.hasApp ? '設定済み（変更時のみ入力）' : '') + '" placeholder="15桁の数字"></label>'
+    + '<label class="f">Client Secret<input id="f-csec-' + co + '" type="password" placeholder="' + (st.hasApp ? '変更しないなら空欄' : '長い英数字') + '"></label></div>'
+    + '<div style="margin-top:7px"><button class="btn mini" onclick="fSaveApp(\'' + co + '\')">' + (st.hasApp ? 'アプリ設定を入れ直す' : '保存して認可へ') + '</button></div>';
+
+  if (st.hasApp) {
+    h += '<div style="margin-top:10px;border-top:1px solid #eef1f5;padding-top:9px">'
+      + '<div class="steps" style="margin-bottom:6px">認可ページで「許可する」→ localhost に飛んで<b>エラー画面</b>になりますが正常です。'
+      + '<b>アドレスバーのURLをそのままコピー</b>して下に貼ってください</div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">'
+      + '<button class="btn mini sub" onclick="window.open(DATA.freee[\'' + co + '\'].authUrl)">認可ページを開く</button>'
+      + '<label class="f" style="flex:1;min-width:170px">認可コード / URL<input id="f-code-' + co + '" placeholder="http://localhost:8089/callback?code=..."></label>'
+      + '<button class="btn mini" onclick="fConnect(\'' + co + '\')">接続</button></div></div>';
+  }
+
+  if (st.hasToken) {
+    h += '<div style="margin-top:10px;border-top:1px solid #eef1f5;padding-top:9px">'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:7px">'
+      + '<select id="f-sel-' + co + '" style="padding:6px;border:1px solid #d3d9e2;border-radius:7px;font-size:12px" onchange="fLoadWallets(\'' + co + '\')"><option value="">事業所を選択…</option>';
+    (FREEE_COMPANIES[co] || []).forEach(function (c) {
+      h += '<option value="' + c.id + '" ' + (String(cur.companyId) === String(c.id) ? 'selected' : '') + '>' + esc(c.name) + '</option>';
+    });
+    h += '</select><button class="btn mini sub" onclick="fLoadCompanies(\'' + co + '\')">事業所を読み込む</button></div>'
+      + '<div id="f-wallets-' + co + '">';
+    if (cur.wallets && cur.wallets.length && !(FREEE_WALLETS[co] || []).length) {
+      h += '<div class="muted" style="font-size:11px">同期中: ' + cur.wallets.map(function (w) { return esc(w.name); }).join('・') + '</div>';
+    }
+    h += '</div><div style="margin-top:8px"><div style="font-size:11px;font-weight:700;color:#5a6673;margin-bottom:5px">請求書作成の設定</div>'
+      + '<div id="f-inv-' + co + '">'
+      + (cur.salesAccountItemId ? '<div class="muted" style="font-size:11px">勘定科目ID ' + esc(cur.salesAccountItemId) + ' / 税区分 ' + esc(cur.taxCode || '未設定') + '</div>' : '<div class="muted" style="font-size:11px">未設定でも作成は試みます</div>')
+      + '</div><button class="btn mini sub" style="margin-top:5px" onclick="fLoadInvOpts(\'' + co + '\')">勘定科目・税区分を読み込む</button></div></div>';
+  }
+  return h + '</div>';
+}
+
+function fSaveApp(co) {
+  var cid = $('f-cid-' + co).value.trim();
+  if (!cid || cid.indexOf('設定済み') === 0) { toast('Client IDを入れてください'); return; }
+  run('saveFreeeApp', co, cid, $('f-csec-' + co).value.trim(), 'http://localhost:8089/callback')
+    .then(function (j) { applyData(j); toast('保存しました。認可ページを開いてください'); });
+}
+function fConnect(co) {
+  var v = $('f-code-' + co).value.trim();
+  if (!v) { toast('認可コードかURLを貼ってください'); return; }
+  run('freeeExchangeCode', co, v).then(function (j) {
+    var r = JSON.parse(j);
+    FREEE_COMPANIES[co] = r.companies; DATA = r.data;
+    renderAll(); showTab('cfg');
+    toast(coName(co) + ' 接続成功！事業所と口座を選んでください');
+  });
+}
+function fLoadCompanies(co) {
+  run('freeeCompanies', co).then(function (j) {
+    var r = JSON.parse(j); FREEE_COMPANIES[co] = r.companies; DATA = r.data; renderAll(); showTab('cfg');
+  });
+}
+function fLoadWallets(co) {
+  var cid = $('f-sel-' + co).value;
+  if (!cid) return;
+  run('freeeWallets', co, cid).then(function (j) {
+    var r = JSON.parse(j); FREEE_WALLETS[co] = r.wallets;
+    var cur = (DATA.freee.map && DATA.freee.map[co] && DATA.freee.map[co].wallets) || [];
+    var keys = cur.map(function (w) { return w.type + ':' + w.id; });
+    var h = '';
+    r.wallets.forEach(function (w, i) {
+      h += '<label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-bottom:4px">'
+        + '<input type="checkbox" id="f-w-' + co + '-' + i + '" ' + (keys.indexOf(w.type + ':' + w.id) >= 0 ? 'checked' : '') + '>'
+        + esc(w.name) + '（' + yen(w.balance) + (w.sync && w.sync !== 'success' ? ' ⚠同期停止' : '') + '）</label>';
+    });
+    $('f-wallets-' + co).innerHTML = h || '<div class="muted" style="font-size:11px">口座がありません</div>';
+  });
+}
+function fLoadInvOpts(co) {
+  var cid = $('f-sel-' + co).value || ((DATA.freee.map && DATA.freee.map[co]) || {}).companyId;
+  if (!cid) { toast('先に事業所を選んでください'); return; }
+  run('freeeInvoiceOptions', co, cid).then(function (j) {
+    var r = JSON.parse(j);
+    var cur = (DATA.freee.map && DATA.freee.map[co]) || {};
+    var h = '<label class="f">売上の勘定科目<select id="f-acc-' + co + '"><option value="">（指定しない）</option>';
+    r.accountItems.forEach(function (a) { h += '<option value="' + a.id + '" ' + (String(cur.salesAccountItemId) === String(a.id) ? 'selected' : '') + '>' + esc(a.name) + '</option>'; });
+    h += '</select></label><label class="f" style="margin-top:5px">税区分<select id="f-tax-' + co + '"><option value="">（指定しない）</option>';
+    r.taxes.forEach(function (t) { h += '<option value="' + t.code + '" ' + (String(cur.taxCode) === String(t.code) ? 'selected' : '') + '>' + esc(t.name) + '</option>'; });
+    h += '</select></label>';
+    if (!r.accountItems.length && !r.taxes.length) h = '<div class="muted" style="font-size:11px">取得できませんでした。未設定のまま作成を試せます</div>';
+    $('f-inv-' + co).innerHTML = h;
+  });
+}
+function fSaveMap() {
+  var map = JSON.parse(JSON.stringify(DATA.freee.map || {}));
+  ['A', 'B'].forEach(function (co) {
+    var sel = $('f-sel-' + co);
+    var prev = map[co] || {};
+    var cid = (sel && sel.value) || prev.companyId;
+    if (!cid) return;
+    var nm = (sel && sel.value) ? sel.options[sel.selectedIndex].text : (prev.companyName || '');
+    var ws = [];
+    (FREEE_WALLETS[co] || []).forEach(function (w, i) { var cb = $('f-w-' + co + '-' + i); if (cb && cb.checked) ws.push({ id: w.id, type: w.type, name: w.name }); });
+    if (!ws.length && prev.wallets) ws = prev.wallets;
+    var acc = $('f-acc-' + co), tax = $('f-tax-' + co);
+    map[co] = {
+      companyId: cid, companyName: nm, wallets: ws,
+      salesAccountItemId: acc ? acc.value : (prev.salesAccountItemId || ''),
+      taxCode: tax ? tax.value : (prev.taxCode || '')
+    };
+  });
+  run('saveFreeeMap', JSON.stringify(map)).then(function (j) { applyData(j); toast('設定を保存しました'); });
+}
+function fSyncNow() { run('syncFreeeNow').then(function (j) { var r = JSON.parse(j); DATA = r.data; renderAll(); toast('同期完了: ' + r.result); }); }
+
+/* ---------- 共通 ---------- */
+function openReport() {
+  run('buildReport').then(function (j) {
+    var r = JSON.parse(j);
+    DATA = r.data; renderAll();
+    window.open(r.url, '_blank');
+    toast(r.result);
+  });
+}
+function openModal(h) { $('modal-body').innerHTML = h; $('modal-bg').style.display = 'flex'; }
+function closeModal() { $('modal-bg').style.display = 'none'; }
+function showTab(t) {
+  TAB = t;
+  if (!RENDERED[t]) renderView(t);
+  TABS.forEach(function (x) { $('sec-' + x[0]).style.display = x[0] === t ? 'block' : 'none'; });
+  renderNav();
+  window.scrollTo(0, 0);
+}
+function setCo(c) { CO = c; RENDERED = {}; renderNav(); renderView(TAB); }
+function renderNav() {
+  var n = alertCount(), p = pendingTxns().filter(inScope).length;
+  var h = '';
+  TABS.forEach(function (x) {
+    var b = (x[0] === 'cash' && n) ? n : (x[0] === 'rec' && p) ? p : (x[0] === 'bill') ? billCount() : 0;
+    h += '<button class="' + (TAB === x[0] ? 'on' : '') + '" onclick="showTab(\'' + x[0] + '\')"><span class="ic">' + x[1] + '</span>' + x[2] + (b ? '<span class="badge">' + b + '</span>' : '') + '</button>';
+  });
+  $('nav').innerHTML = h;
+  var c = '';
+  [['ALL', '全社'], ['A', coName('A')], ['B', coName('B')]].forEach(function (x) {
+    c += '<button class="' + (CO === x[0] ? 'on' : '') + '" onclick="setCo(\'' + x[0] + '\')">' + esc(x[1]) + '</button>';
+  });
+  $('coswitch').innerHTML = c;
+}
+var RENDERERS = { cash: function () { renderCash(); }, inv: function () { renderInv(); }, bill: function () { renderBill(); }, rec: function () { renderRec(); }, pl: function () { renderPL(); }, cfg: function () { renderCfg(); } };
+var RENDERED = {};
+function renderView(t) {
+  if (!RENDERERS[t]) return;
+  RENDERERS[t]();
+  RENDERED[t] = true;
+}
+function renderAll() { RENDERED = {}; renderNav(); renderView(TAB); }
+function showErr(t) {
+  var el = document.getElementById('sec-cash');
+  if (el) el.innerHTML = '<div class="card"><h2>画面エラー</h2><pre style="white-space:pre-wrap;color:#b3251a;font-size:12px">' + t + '</pre></div>';
+}
+window.onerror = function (m, s, l, c) { showErr(m + '\n@' + l + ':' + c); };
+function applyAndCache(json) {
+  try { localStorage.setItem('bk_data', json); } catch (e) {}
+  applyData(json);
+}
+function boot() {
+  if (!WH) { showErr('合言葉がありません。URLの末尾に ?wh=合言葉 を付けて開いてください'); return; }
+  var cached = null;
+  try { cached = localStorage.getItem('bk_data'); } catch (e) {}
+  if (cached) {
+    try { DATA = JSON.parse(cached); renderAll(); markStale(true); } catch (e) {}
+  } else {
+    $('sec-cash').innerHTML = '<div class="card"><div class="empty">読み込んでいます…</div></div>';
+    renderNav();
+  }
+  fetch(API + '?api=data&wh=' + encodeURIComponent(WH))
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (j.error) { showErr(j.error); return; }
+      applyAndCache(j.result);
+      markStale(false);
+    })
+    .catch(function (e) { markStale(false); if (!cached) showErr('通信できません: ' + e.message); });
+}
+function markStale(on) {
+  var el = $('stale');
+  if (el) el.style.display = on ? 'inline-block' : 'none';
+}
+try { boot(); } catch (err) { showErr(err && err.stack ? err.stack : String(err)); }
+</script>
+</body>
+</html>
