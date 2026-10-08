@@ -163,7 +163,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610081901';
+var BUILD = '202610081910';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -993,7 +993,18 @@ function lastMonths(n) {
 }
 function renderPL() {
   var pl = DATA.pl;
-  if (!pl) { $('sec-pl').innerHTML = '<div class="card"><div class="empty">集計データがありません</div></div>'; return; }
+  if (!pl) {
+    $('sec-pl').innerHTML = '<div class="card"><div class="empty">集計しています…（10秒ほどかかります）</div></div>';
+    if (!window.__plLoading) {
+      window.__plLoading = true;
+      run('getPL').then(function (j) {
+        DATA.pl = JSON.parse(j);
+        window.__plLoading = false;
+        renderPL();
+      }).catch(function () { window.__plLoading = false; $('sec-pl').innerHTML = '<div class="card"><div class="empty">集計を取得できませんでした</div></div>'; });
+    }
+    return;
+  }
   var months = pl.months;
   var html = '<div class="card"><h2>📈 費目別PL <span class="sub">freeeの実際の入出金ベース（現金主義）・直近6ヶ月</span></h2>'
     + '<div class="muted" style="font-size:11px">摘要から費目を自動判定しています。「その他」の内訳から費目を選んで登録すると、以後その相手先は自動で分類されます</div></div>';
