@@ -163,7 +163,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610081956';
+var BUILD = '202610081957';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -186,7 +186,7 @@ var CO = 'ALL';
 var FILTER = { inv: 'ALL', bill: 'ALL' };
 var FREEE_COMPANIES = { A: [], B: [] };
 var FREEE_WALLETS = { A: [], B: [] };
-var TABS = [['cash', '🏠', 'ホーム'], ['inv', '📤', '請求<span class="lg">（売上）</span>'], ['bill', '📥', '支払<span class="lg">（経費）</span>'], ['pay', '🏦', '振込'], ['rec', '🔗', '消込<span class="lg">み</span>'], ['pl', '📈', 'PL<span class="lg">（費目別）</span>'], ['cfg', '⚙️', '設定']];
+var TABS = [['cash', '🏠', 'ホーム'], ['pay', '🏦', '支払・振込'], ['cfg', '⚙️', '設定']];
 
 function $(id) { return document.getElementById(id); }
 function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -275,6 +275,12 @@ function alertCount() {
     if (b['状態'] === '未払' && b['支払期日'] && b['支払期日'] < t) n++;
   });
   return n;
+}
+function payCount() {
+  var lim = d2s(new Date(Date.now() + 7 * 86400000));
+  return liveBill().filter(inScope).filter(function (b) {
+    return (b['状態'] === '未払' || b['状態'] === '要承認') && Number(b['金額']) > 0 && b['支払期日'] && b['支払期日'] <= lim;
+  }).length;
 }
 function billCount() {
   return liveBill().filter(inScope).filter(function (b) { return b['状態'] === '要確認' || b['状態'] === '要承認'; }).length;
@@ -767,32 +773,25 @@ function renderPay() {
   var t = todayStr();
   var wk = d2s(new Date(Date.now() + 7 * 86400000));
   var me = t.slice(0, 8) + '31';
-  var list = liveBill().filter(inScope).filter(function (b) { return b['状態'] === '未払' || b['状態'] === '要承認'; });
+  var all = liveBill().filter(inScope).filter(function (b) { return b['状態'] !== '支払済'; });
+  var ready = all.filter(function (b) { return Number(b['金額']) > 0 && b['状態'] !== '要確認'; });
+  var waiting = all.filter(function (b) { return !(Number(b['金額']) > 0) || b['状態'] === '要確認'; });
   function sum(a) { var n = 0; a.forEach(function (b) { n += Number(b['金額']) || 0; }); return n; }
 
-  var over = list.filter(function (b) { return b['支払期日'] && b['支払期日'] < t; });
-  var soon = list.filter(function (b) { return b['支払期日'] && b['支払期日'] >= t && b['支払期日'] <= wk; });
-  var month = list.filter(function (b) { return b['支払期日'] && b['支払期日'] > wk && b['支払期日'] <= me; });
-  var later = list.filter(function (b) { return b['支払期日'] && b['支払期日'] > me; });
-  var nodue = list.filter(function (b) { return !b['支払期日']; });
-  var noBank = list.filter(function (b) { return !b['口座番号']; });
+  var over = ready.filter(function (b) { return b['支払期日'] && b['支払期日'] < t; });
+  var soon = ready.filter(function (b) { return b['支払期日'] && b['支払期日'] >= t && b['支払期日'] <= wk; });
+  var month = ready.filter(function (b) { return b['支払期日'] && b['支払期日'] > wk && b['支払期日'] <= me; });
+  var later = ready.filter(function (b) { return b['支払期日'] && b['支払期日'] > me; });
+  var nodue = ready.filter(function (b) { return !b['支払期日']; });
 
-  var html = '<div class="card"><h2>🏦 振込する分 <span class="sub">期日が近い順。振り込んだら「振込済」を押す</span></h2>'
-    + '<div class="kpis" style="grid-template-columns:repeat(4,1fr)">'
-    + '<div class="kpi" style="background:#fdecea"><div class="l">🔴 期日超過</div><div class="v minus">' + yen(sum(over)) + '</div><div class="l">' + over.length + '件</div></div>'
-    + '<div class="kpi" style="background:#fdf3e0"><div class="l">今週</div><div class="v warn">' + yen(sum(soon)) + '</div><div class="l">' + soon.length + '件</div></div>'
-    + '<div class="kpi"><div class="l">今月中</div><div class="v">' + yen(sum(month)) + '</div><div class="l">' + month.length + '件</div></div>'
-    + '<div class="kpi"><div class="l">未払 合計</div><div class="v">' + yen(sum(list)) + '</div><div class="l">' + list.length + '件</div></div>'
-    + '</div>';
-  if (noBank.length) {
-    html += '<div style="margin-top:9px;font-size:12px;color:#96610a;background:#fdf3e0;border-radius:7px;padding:8px 10px">'
-      + '⚠️ 振込先が未登録：' + noBank.length + '件（' + yen(sum(noBank)) + '）'
-      + ' <button class="btn mini sub" style="margin-left:6px" onclick="enrichMail()">請求書PDFから読み取る</button>'
-      + ' <button class="btn mini sub" onclick="run(\'applyPayeeMaster\').then(function(j){var r=JSON.parse(j);DATA=r.data;renderAll();toast(r.result);})">記憶した振込先を反映</button></div>';
-  }
-  html += '</div>';
+  var html = '<div class="card"><h2>🏦 振り込むもの <span class="sub">期日が近い順。振り込んだら「振込済」を押す</span></h2>'
+    + '<div class="kpis" style="grid-template-columns:repeat(3,1fr)">'
+    + '<div class="kpi" style="background:#fdecea"><div class="l">🔴 期日を過ぎている</div><div class="v minus">' + yen(sum(over)) + '</div><div class="l">' + over.length + '件</div></div>'
+    + '<div class="kpi" style="background:#fdf3e0"><div class="l">今週まで</div><div class="v warn">' + yen(sum(soon)) + '</div><div class="l">' + soon.length + '件</div></div>'
+    + '<div class="kpi"><div class="l">未払 合計</div><div class="v">' + yen(sum(ready)) + '</div><div class="l">' + ready.length + '件</div></div>'
+    + '</div></div>';
 
-  var groups = [['🔴 期日を過ぎている', over, '#fdecea'], ['今週（7日以内）', soon, '#fdf3e0'], ['今月中', month, ''], ['来月以降', later, ''], ['期日が未入力', nodue, '#f0f3f7']];
+  var groups = [['🔴 期日を過ぎている', over, '#fdecea'], ['今週まで', soon, '#fdf3e0'], ['今月中', month, ''], ['来月以降', later, ''], ['期日が未入力', nodue, '#f0f3f7']];
   groups.forEach(function (g) {
     if (!g[1].length) return;
     html += '<div class="card"><h2>' + g[0] + ' <span class="sub">' + g[1].length + '件・' + yen(sum(g[1])) + '</span></h2>';
@@ -801,98 +800,74 @@ function renderPay() {
       var dtxt = days === null ? '期日未定' : (days < 0 ? (-days) + '日超過' : days === 0 ? '今日' : 'あと' + days + '日');
       var bank = bankLine(b);
       html += '<div class="reccard out" style="' + (g[2] ? 'background:' + g[2] + ';' : '') + '">'
-        + '<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px">'
-        + '<span class="pill p-blue">' + esc(coName(b['会社'])) + '</span>'
-        + '<b style="font-size:15px">' + esc(b['支払先']) + '</b>'
+        + '<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:5px">'
+        + '<span class="pill p-blue">' + esc(coName(b['会社'])) + ' が払う</span>'
+        + '<b style="font-size:16px">' + esc(b['支払先']) + '</b>'
         + '<span class="pill p-gray">' + esc(b['費目'] || '未分類') + '</span>'
         + (b['状態'] === '要承認' ? '<span class="pill p-red">要承認</span>' : '')
         + '</div>'
-        + '<div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px">'
-        + '<span class="minus" style="font-size:20px;font-weight:700">' + yen(b['金額']) + '</span>'
-        + '<span style="font-size:12px' + (days !== null && days < 3 ? ';color:#e5533d;font-weight:700' : '') + '">' + esc(b['支払期日'] || '—') + '（' + dtxt + '）</span>'
+        + '<div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px">'
+        + '<span class="minus" style="font-size:22px;font-weight:700">' + yen(b['金額']) + '</span>'
+        + '<span style="font-size:13px' + (days !== null && days < 3 ? ';color:#e5533d;font-weight:700' : '') + '">' + esc(b['支払期日'] || '期日なし') + '（' + dtxt + '）</span>'
         + '</div>'
-        + '<div style="font-size:11.5px" class="muted">' + esc(String(b['件名']).slice(0, 50)) + '</div>'
-        + '<div style="margin-top:7px;padding:8px 10px;background:#f7f9fc;border-radius:7px;font-size:12.5px">'
+        + '<div style="margin-top:4px;padding:9px 11px;background:#ffffff;border:1px solid #e1e6ed;border-radius:8px;font-size:13px">'
         + (bank
           ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>' + esc(bank) + '</b>'
+            + (b['口座名義'] ? '<span class="muted">' + esc(b['口座名義']) + '</span>' : '')
             + '<button class="btn mini sub" onclick="copyText(' + JSON.stringify(JSON.stringify(bank + (b['口座名義'] ? ' ' + b['口座名義'] : ''))) + '.slice(1,-1),\'振込先を\')">コピー</button>'
             + '<button class="btn mini sub" onclick="openBankForm(\'' + b.id + '\')">直す</button></div>'
-            + (b['口座名義'] ? '<div class="muted" style="margin-top:2px">名義：' + esc(b['口座名義']) + '</div>' : '')
-          : '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="warn">振込先が未登録</span>'
+          : '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="minus"><b>振込先が入っていません</b></span>'
             + '<button class="btn mini" onclick="openBankForm(\'' + b.id + '\')">振込先を入れる</button></div>')
         + '</div>'
-        + '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
+        + '<div style="margin-top:9px;display:flex;gap:6px;flex-wrap:wrap">'
         + (b['状態'] === '要承認'
           ? '<button class="btn mini" onclick="run(\'approveBill\',\'' + b.id + '\').then(applyData)">承認する</button>'
           : '<button class="btn mini green" onclick="payBill(\'' + b.id + '\')">✓ 振込済にする</button>')
         + '<button class="btn mini sub" onclick="editBill(\'' + b.id + '\')">編集</button>'
-        + (b['添付URL'] ? '<a class="btn mini sub" href="' + esc(b['添付URL']) + '" target="_blank" style="text-decoration:none">請求書を見る</a>' : '')
+        + (b['添付URL'] ? '<a class="btn mini sub" href="' + esc(b['添付URL']) + '" target="_blank" style="text-decoration:none">請求書</a>' : '')
+        + (b['メールURL'] ? '<a class="btn mini sub" href="' + esc(b['メールURL']) + '" target="_blank" style="text-decoration:none">メール</a>' : '')
         + '</div></div>';
     });
     html += '</div>';
   });
 
-  var waiting = liveBill().filter(inScope).filter(function (b) { return b['状態'] === '要確認'; });
+  if (!ready.length) html += '<div class="card"><div class="empty">振り込むものはありません 👍</div></div>';
+
   if (waiting.length) {
-    html += '<div class="card"><h2>金額の確認が必要 <span class="sub">' + waiting.length + '件・請求書を見て金額を入れると振込リストに乗ります</span>'
-      + '<button class="btn mini sub" style="margin-left:auto" onclick="enrichMail()">請求書から読み取る</button></h2>'
-      + '<div class="tablewrap"><table><tr><th>受領</th><th>会社</th><th>請求元</th><th>件名</th><th class="num" style="width:130px">金額を入れる</th><th style="width:150px"></th></tr>';
-    waiting.slice(0, 40).forEach(function (b) {
-      html += '<tr><td style="font-size:11.5px">' + esc(b['受領日']) + '</td><td>' + esc(coName(b['会社'])) + '</td>'
-        + '<td><b>' + esc(b['支払先']) + '</b></td>'
-        + '<td style="font-size:11px">' + esc(String(b['件名']).slice(0, 34)) + '</td>'
-        + '<td><input id="wa-' + b.id + '" type="number" style="width:118px;padding:5px;border:1px solid #d3d9e2;border-radius:6px" value="' + esc(b['金額'] || '') + '"></td>'
-        + '<td><div class="row-actions"><button class="btn mini green" onclick="confirmAmt(\'' + b.id + '\')">確定</button>'
-        + (b['メールURL'] ? '<a class="btn mini sub" href="' + esc(b['メールURL']) + '" target="_blank" style="text-decoration:none">メール</a>' : '')
-        + (b['添付URL'] ? '<a class="btn mini sub" href="' + esc(b['添付URL']) + '" target="_blank" style="text-decoration:none">請求書</a>' : '')
-        + '<button class="btn mini red" onclick="run(\'updateBill\',\'' + b.id + '\',{状態:\'取消\'}).then(applyData)">対象外</button></div></td></tr>';
+    html += '<div class="card"><h2>金額が分からない請求書 <span class="sub">' + waiting.length + '件</span></h2>'
+      + '<div class="muted" style="font-size:12px;margin-bottom:9px">請求書かメールを開いて金額を入れると、上の振込リストに並びます。'
+      + '<button class="btn mini sub" style="margin-left:6px" onclick="enrichMail()">請求書から読み取る</button></div>'
+      + '<details><summary style="cursor:pointer;font-size:13px;color:#2864f0;font-weight:700">開いて1件ずつ入れる（' + waiting.length + '件）</summary>'
+      + '<div style="margin-top:10px">';
+    waiting.sort(function (a, b) { return (a['受領日'] || '') < (b['受領日'] || '') ? 1 : -1; }).slice(0, 40).forEach(function (b) {
+      html += '<div class="reccard out">'
+        + '<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">'
+        + '<span class="pill p-blue">' + esc(coName(b['会社'])) + '</span>'
+        + '<b>' + esc(b['支払先']) + '</b>'
+        + '<span class="muted" style="font-size:11.5px">受領 ' + esc(b['受領日']) + '</span>'
+        + (b['添付URL'] ? ' <a href="' + esc(b['添付URL']) + '" target="_blank" style="font-size:11.5px">請求書を開く ↗</a>' : '')
+        + (b['メールURL'] ? ' <a href="' + esc(b['メールURL']) + '" target="_blank" style="font-size:11.5px">メールを開く ↗</a>' : '')
+        + '</div>'
+        + '<div style="font-size:11.5px;margin:3px 0 7px" class="muted">' + esc(String(b['件名']).slice(0, 56)) + '</div>'
+        + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">'
+        + '<label class="f" style="width:130px">金額<input id="wa-' + b.id + '" type="number" value="' + esc(Number(b['金額']) > 0 ? b['金額'] : '') + '"></label>'
+        + '<label class="f" style="width:150px">支払期日<input id="wd-' + b.id + '" type="date" value="' + esc(b['支払期日'] || '') + '"></label>'
+        + '<button class="btn green mini" onclick="confirmAmt(\'' + b.id + '\')">振込リストに入れる</button>'
+        + '<button class="btn red mini" onclick="run(\'updateBill\',\'' + b.id + '\',{状態:\'取消\'}).then(applyData)">請求書じゃない</button>'
+        + '</div></div>';
     });
-    html += '</table></div></div>';
+    html += '</div></details></div>';
   }
-  if (!list.length && !waiting.length) html += '<div class="card"><div class="empty">振込予定はありません 👍</div></div>';
   $('sec-pay').innerHTML = html;
 }
+
 function confirmAmt(id) {
   var v = $('wa-' + id).value;
   if (!v || Number(v) <= 0) { toast('金額を入れてください'); return; }
-  run('confirmMailBill', id, { 金額: v }).then(function (j) { applyData(j); toast('振込リストに追加しました'); });
+  var due = $('wd-' + id) ? $('wd-' + id).value : '';
+  run('confirmMailBill', id, { 金額: v, 支払期日: due }).then(function (j) { applyData(j); toast('振込リストに入れました'); });
 }
-function openBankForm(id) {
-  var b = (DATA.bills || []).filter(function (x) { return x.id === id; })[0];
-  if (!b) return;
-  var master = DATA.payeeMaster || {};
-  var m = master[String(b['支払先'] || '').trim()] || {};
-  function v(k) { return esc(b[k] || m[k] || ''); }
-  var h = '<h3>振込先：' + esc(b['支払先']) + '</h3>'
-    + '<div class="steps">一度入れると<b>この支払先の請求書は次回から自動で入ります</b></div>'
-    + '<div class="form-grid">'
-    + '<label class="f">銀行名<input id="bk-bank" value="' + v('銀行名') + '" placeholder="三菱UFJ銀行"></label>'
-    + '<label class="f">支店名<input id="bk-branch" value="' + v('支店名') + '" placeholder="武蔵境支店"></label>'
-    + '<label class="f">種別<select id="bk-type"><option value="普通"' + ((b['口座種別'] || m.口座種別) === '当座' ? '' : ' selected') + '>普通</option><option value="当座"' + ((b['口座種別'] || m.口座種別) === '当座' ? ' selected' : '') + '>当座</option><option value="貯蓄">貯蓄</option></select></label>'
-    + '<label class="f">口座番号<input id="bk-no" value="' + v('口座番号') + '" placeholder="1234567"></label>'
-    + '<label class="f" style="grid-column:1/-1">口座名義<input id="bk-name" value="' + v('口座名義') + '" placeholder="カ）サスガ"></label>'
-    + '</div>'
-    + (b['添付URL'] ? '<div style="margin-top:8px"><a href="' + esc(b['添付URL']) + '" target="_blank">請求書を開いて確認する ↗</a></div>' : '')
-    + (b['メールURL'] ? '<div style="margin-top:4px"><a href="' + esc(b['メールURL']) + '" target="_blank">メールを開く ↗</a></div>' : '')
-    + '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">'
-    + '<button class="btn" onclick="saveBank(\'' + id + '\')">保存して記憶する</button>'
-    + '<button class="btn sub" onclick="closeModal()">閉じる</button></div>';
-  openModal(h);
-}
-function saveBank(id) {
-  var b = (DATA.bills || []).filter(function (x) { return x.id === id; })[0];
-  var bank = {
-    銀行名: $('bk-bank').value.trim(), 支店名: $('bk-branch').value.trim(),
-    口座種別: $('bk-type').value, 口座番号: $('bk-no').value.trim(), 口座名義: $('bk-name').value.trim()
-  };
-  if (!bank.口座番号) { toast('口座番号を入れてください'); return; }
-  run('updateBill', id, bank).then(function () {
-    return run('savePayeeBank', b['支払先'], bank, true);
-  }).then(function (j) {
-    var r = JSON.parse(j);
-    DATA = r.data; renderAll(); closeModal(); toast(r.result);
-  });
-}
+
 function enrichMail() {
   toast('請求書PDFを読み取っています…（数十秒かかります）');
   run('enrichFromMail', 8).then(function (j) {
@@ -1354,7 +1329,7 @@ function renderNav() {
   var n = alertCount(), p = pendingTxns().filter(inScope).length;
   var h = '';
   TABS.forEach(function (x) {
-    var b = (x[0] === 'cash' && n) ? n : (x[0] === 'rec' && p) ? p : (x[0] === 'bill') ? billCount() : 0;
+    var b = (x[0] === 'cash' && n) ? n : (x[0] === 'pay') ? payCount() : 0;
     h += '<button class="' + (TAB === x[0] ? 'on' : '') + '" onclick="showTab(\'' + x[0] + '\')"><span class="ic">' + x[1] + '</span>' + x[2] + (b ? '<span class="badge">' + b + '</span>' : '') + '</button>';
   });
   $('nav').innerHTML = h;
@@ -1364,7 +1339,7 @@ function renderNav() {
   });
   $('coswitch').innerHTML = c;
 }
-var RENDERERS = { cash: function () { renderCash(); }, inv: function () { renderInv(); }, bill: function () { renderBill(); }, pay: function () { renderPay(); }, rec: function () { renderRec(); }, pl: function () { renderPL(); }, cfg: function () { renderCfg(); } };
+var RENDERERS = { cash: function () { renderCash(); }, pay: function () { renderPay(); }, cfg: function () { renderCfg(); } };
 var RENDERED = {};
 function renderView(t) {
   if (!RENDERERS[t]) return;
