@@ -163,7 +163,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610081840';
+var BUILD = '202610081901';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -829,8 +829,30 @@ function renderPay() {
     html += '</div>';
   });
 
-  if (!list.length) html += '<div class="card"><div class="empty">振込予定はありません 👍</div></div>';
+  var waiting = liveBill().filter(inScope).filter(function (b) { return b['状態'] === '要確認'; });
+  if (waiting.length) {
+    html += '<div class="card"><h2>金額の確認が必要 <span class="sub">' + waiting.length + '件・請求書を見て金額を入れると振込リストに乗ります</span>'
+      + '<button class="btn mini sub" style="margin-left:auto" onclick="enrichMail()">請求書から読み取る</button></h2>'
+      + '<div class="tablewrap"><table><tr><th>受領</th><th>会社</th><th>請求元</th><th>件名</th><th class="num" style="width:130px">金額を入れる</th><th style="width:150px"></th></tr>';
+    waiting.slice(0, 40).forEach(function (b) {
+      html += '<tr><td style="font-size:11.5px">' + esc(b['受領日']) + '</td><td>' + esc(coName(b['会社'])) + '</td>'
+        + '<td><b>' + esc(b['支払先']) + '</b></td>'
+        + '<td style="font-size:11px">' + esc(String(b['件名']).slice(0, 34)) + '</td>'
+        + '<td><input id="wa-' + b.id + '" type="number" style="width:118px;padding:5px;border:1px solid #d3d9e2;border-radius:6px" value="' + esc(b['金額'] || '') + '"></td>'
+        + '<td><div class="row-actions"><button class="btn mini green" onclick="confirmAmt(\'' + b.id + '\')">確定</button>'
+        + (b['メールURL'] ? '<a class="btn mini sub" href="' + esc(b['メールURL']) + '" target="_blank" style="text-decoration:none">メール</a>' : '')
+        + (b['添付URL'] ? '<a class="btn mini sub" href="' + esc(b['添付URL']) + '" target="_blank" style="text-decoration:none">請求書</a>' : '')
+        + '<button class="btn mini red" onclick="run(\'updateBill\',\'' + b.id + '\',{状態:\'取消\'}).then(applyData)">対象外</button></div></td></tr>';
+    });
+    html += '</table></div></div>';
+  }
+  if (!list.length && !waiting.length) html += '<div class="card"><div class="empty">振込予定はありません 👍</div></div>';
   $('sec-pay').innerHTML = html;
+}
+function confirmAmt(id) {
+  var v = $('wa-' + id).value;
+  if (!v || Number(v) <= 0) { toast('金額を入れてください'); return; }
+  run('confirmMailBill', id, { 金額: v }).then(function (j) { applyData(j); toast('振込リストに追加しました'); });
 }
 function enrichMail() {
   toast('請求書PDFを読み取っています…（数十秒かかります）');
