@@ -163,7 +163,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610081910';
+var BUILD = '202610081950';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -787,7 +787,8 @@ function renderPay() {
   if (noBank.length) {
     html += '<div style="margin-top:9px;font-size:12px;color:#96610a;background:#fdf3e0;border-radius:7px;padding:8px 10px">'
       + '⚠️ 振込先が未登録：' + noBank.length + '件（' + yen(sum(noBank)) + '）'
-      + ' <button class="btn mini sub" style="margin-left:6px" onclick="enrichMail()">請求書PDFから読み取る</button></div>';
+      + ' <button class="btn mini sub" style="margin-left:6px" onclick="enrichMail()">請求書PDFから読み取る</button>'
+      + ' <button class="btn mini sub" onclick="run(\'applyPayeeMaster\').then(function(j){var r=JSON.parse(j);DATA=r.data;renderAll();toast(r.result);})">記憶した振込先を反映</button></div>';
   }
   html += '</div>';
 
@@ -814,9 +815,11 @@ function renderPay() {
         + '<div style="margin-top:7px;padding:8px 10px;background:#f7f9fc;border-radius:7px;font-size:12.5px">'
         + (bank
           ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>' + esc(bank) + '</b>'
-            + '<button class="btn mini sub" onclick="copyText(' + JSON.stringify(JSON.stringify(bank + (b['口座名義'] ? ' ' + b['口座名義'] : ''))) + '.slice(1,-1),\'振込先を\')">コピー</button></div>'
+            + '<button class="btn mini sub" onclick="copyText(' + JSON.stringify(JSON.stringify(bank + (b['口座名義'] ? ' ' + b['口座名義'] : ''))) + '.slice(1,-1),\'振込先を\')">コピー</button>'
+            + '<button class="btn mini sub" onclick="openBankForm(\'' + b.id + '\')">直す</button></div>'
             + (b['口座名義'] ? '<div class="muted" style="margin-top:2px">名義：' + esc(b['口座名義']) + '</div>' : '')
-          : '<span class="warn">振込先が未登録</span>')
+          : '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="warn">振込先が未登録</span>'
+            + '<button class="btn mini" onclick="openBankForm(\'' + b.id + '\')">振込先を入れる</button></div>')
         + '</div>'
         + '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
         + (b['状態'] === '要承認'
@@ -853,6 +856,42 @@ function confirmAmt(id) {
   var v = $('wa-' + id).value;
   if (!v || Number(v) <= 0) { toast('金額を入れてください'); return; }
   run('confirmMailBill', id, { 金額: v }).then(function (j) { applyData(j); toast('振込リストに追加しました'); });
+}
+function openBankForm(id) {
+  var b = (DATA.bills || []).filter(function (x) { return x.id === id; })[0];
+  if (!b) return;
+  var master = DATA.payeeMaster || {};
+  var m = master[String(b['支払先'] || '').trim()] || {};
+  function v(k) { return esc(b[k] || m[k] || ''); }
+  var h = '<h3>振込先：' + esc(b['支払先']) + '</h3>'
+    + '<div class="steps">一度入れると<b>この支払先の請求書は次回から自動で入ります</b></div>'
+    + '<div class="form-grid">'
+    + '<label class="f">銀行名<input id="bk-bank" value="' + v('銀行名') + '" placeholder="三菱UFJ銀行"></label>'
+    + '<label class="f">支店名<input id="bk-branch" value="' + v('支店名') + '" placeholder="武蔵境支店"></label>'
+    + '<label class="f">種別<select id="bk-type"><option value="普通"' + ((b['口座種別'] || m.口座種別) === '当座' ? '' : ' selected') + '>普通</option><option value="当座"' + ((b['口座種別'] || m.口座種別) === '当座' ? ' selected' : '') + '>当座</option><option value="貯蓄">貯蓄</option></select></label>'
+    + '<label class="f">口座番号<input id="bk-no" value="' + v('口座番号') + '" placeholder="1234567"></label>'
+    + '<label class="f" style="grid-column:1/-1">口座名義<input id="bk-name" value="' + v('口座名義') + '" placeholder="カ）サスガ"></label>'
+    + '</div>'
+    + (b['添付URL'] ? '<div style="margin-top:8px"><a href="' + esc(b['添付URL']) + '" target="_blank">請求書を開いて確認する ↗</a></div>' : '')
+    + (b['メールURL'] ? '<div style="margin-top:4px"><a href="' + esc(b['メールURL']) + '" target="_blank">メールを開く ↗</a></div>' : '')
+    + '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn" onclick="saveBank(\'' + id + '\')">保存して記憶する</button>'
+    + '<button class="btn sub" onclick="closeModal()">閉じる</button></div>';
+  openModal(h);
+}
+function saveBank(id) {
+  var b = (DATA.bills || []).filter(function (x) { return x.id === id; })[0];
+  var bank = {
+    銀行名: $('bk-bank').value.trim(), 支店名: $('bk-branch').value.trim(),
+    口座種別: $('bk-type').value, 口座番号: $('bk-no').value.trim(), 口座名義: $('bk-name').value.trim()
+  };
+  if (!bank.口座番号) { toast('口座番号を入れてください'); return; }
+  run('updateBill', id, bank).then(function () {
+    return run('savePayeeBank', b['支払先'], bank, true);
+  }).then(function (j) {
+    var r = JSON.parse(j);
+    DATA = r.data; renderAll(); closeModal(); toast(r.result);
+  });
 }
 function enrichMail() {
   toast('請求書PDFを読み取っています…（数十秒かかります）');
