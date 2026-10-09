@@ -164,7 +164,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610091458';
+var BUILD = '202610091547';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -792,6 +792,157 @@ function mailMeta(b) {
     + (b['メールURL'] ? '<a class="btn mini sub" href="' + esc(b['メールURL']) + '" target="_blank" style="text-decoration:none">Gmailで開く ↗</a>' : '')
     + '</div>';
   return h + '</div>';
+}
+
+/* ---------- 振込先の入力 ---------- */
+
+/** 請求書からコピペした文字列を、銀行名・支店・種別・口座番号・名義に分解する。
+ *  書式がバラバラ（ラベルあり/なし・順不同・全角/半角）なので、項目ごとに独立して探す。 */
+function parseBank(src) {
+  var t = String(src || '')
+    .replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+    .replace(/[Ａ-Ｚａ-ｚ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+    .replace(/　/g, ' ');
+  var out = { 銀行名: '', 支店名: '', 口座種別: '', 口座番号: '', 口座名義: '' };
+
+  var mb = t.match(/([ぁ-んァ-ヶ一-龥A-Za-z][ぁ-んァ-ヶー一-龥A-Za-z0-9]{0,15}?(?:銀行|信用金庫|信金|信用組合|労働金庫|農業協同組合))/);
+  if (mb) out.銀行名 = mb[1].replace(/^(?:銀行名|金融機関名?)[:：]?/, '');
+
+  var ms = t.match(/([ぁ-んァ-ヶ一-龥A-Za-z0-9][ぁ-んァ-ヶー一-龥A-Za-z0-9]{0,13}?(?:支店|営業部|出張所|支社))/);
+  if (ms && ms[1] !== out.銀行名) out.支店名 = ms[1].replace(/^(?:支店名|店名)[:：]?/, '');
+  else if (/本店/.test(t) && !out.支店名) out.支店名 = '本店';
+
+  var mk = t.match(/(普通|当座|貯蓄)/);
+  if (mk) out.口座種別 = mk[1];
+
+  // 口座番号：ラベル優先。なければ種別の近く。銀行コード(4桁)・支店コード(3桁)と混ざらないよう6桁以上に限定。
+  var mn = t.match(/(?:口座番号|口座No|アカウント番号)[^0-9]{0,8}(\d{6,8})(?!\d)/);
+  if (!mn) mn = t.match(/(?:普通|当座|貯蓄)(?:預金)?[^0-9]{0,10}(\d{6,8})(?!\d)/);
+  if (!mn) mn = t.match(/(\d{6,8})(?!\d)/);
+  if (mn) out.口座番号 = mn[1];
+
+  var mh = t.match(/(?:口座名義(?:人)?|名義(?:人)?|受取人)[:：]?\s*([^\n]{2,40})/);
+  if (mh) out.口座名義 = mh[1].trim();
+  if (!out.口座名義) {
+    // 銀行名・支店名と、読み仮名や金融機関コードが入った括弧を先に取り除く。
+    // そうしないと「三井住友銀行（ﾐﾂｲｽﾐﾄﾓ 0009）」の読みを名義として拾ってしまう。
+    var rest = t;
+    if (out.銀行名) rest = rest.split(out.銀行名).join('\n');
+    if (out.支店名) rest = rest.split(out.支店名).join('\n');
+    rest = rest.replace(/[（(][^)）]*\d[^)）]*[)）]/g, '\n');
+    // カナの名義は「カ）ネツトプロテクシヨンズ」のように略号＋閉じ括弧で始まることがあるので、
+    // 候補を全部拾って一番長いものを採る。
+    var cands = (rest.match(/(?:[ｦ-ﾟ]|[ァ-ヶ])[ｦ-ﾟァ-ヶー 　]{0,30}(?:[\)）][ｦ-ﾟァ-ヶー 　]{0,30})?/g) || [])
+      .map(function (x) { return x.trim(); })
+      .filter(function (x) { return x.length >= 3; })
+      .sort(function (a, b) { return b.length - a.length; });
+    if (cands.length) {
+      var hit = cands[0];
+      var at = rest.indexOf(hit);
+      var pre = rest.slice(Math.max(0, at - 4), at);
+      out.口座名義 = (/株式会社|合同会社|有限会社/.test(pre) ? pre.slice(-4) : '') + hit;
+    }
+    if (!out.口座名義) {
+      var mh3 = rest.match(/((?:株式会社|合同会社|有限会社|合資会社)[^\s\n（(]{1,24}|[^\s\n（(]{1,24}(?:株式会社|合同会社|有限会社))/);
+      if (mh3) out.口座名義 = mh3[1].trim();
+    }
+  }
+  out.口座名義 = String(out.口座名義).replace(/^[:：\s]+/, '').slice(0, 40);
+  return out;
+}
+
+/** 支店番号（3桁）が拾えれば支店名に添える。例「東京中央支店（593）」 */
+function branchWithCode(src, branch) {
+  if (!branch) return '';
+  var t = String(src || '').replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+  var re = new RegExp(branch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[（(]\\s*[^)）]*?(\\d{3})\\s*[)）]');
+  var m = t.match(re);
+  if (!m) { var m2 = t.match(/(?:支店番号|店番号?)[^0-9]{0,4}(\d{3})(?!\d)/); if (m2) return branch + '（' + m2[1] + '）'; }
+  return m ? branch + '（' + m[1] + '）' : branch;
+}
+
+function openBankForm(id) {
+  var b = null;
+  DATA.bills.forEach(function (x) { if (x.id === id) b = x; });
+  if (!b) return;
+  function fld(label, key, val, ph) {
+    return '<label class="f" style="flex:1 1 150px">' + label
+      + '<input id="bk-' + key + '" value="' + esc(val || '') + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + '></label>';
+  }
+  openModal('<h3 style="margin:0 0 4px;font-size:15px">' + esc(b['支払先']) + ' の振込先</h3>'
+    + '<div class="muted" style="font-size:11.5px;margin-bottom:10px">一度入れると、この相手の次の請求書には自動で入ります。</div>'
+    + '<label class="f">請求書から振込先をコピーして貼る（自動で分解します）'
+    + '<textarea id="bk-paste" rows="4" placeholder="例： 三菱UFJ銀行 武蔵境支店 普通 0098127 口座名義 イマムラナオキ" '
+    + 'style="width:100%;font-size:13px;padding:8px;border:1px solid #d7dde6;border-radius:8px"></textarea></label>'
+    + '<button class="btn mini" style="margin:6px 0 12px" onclick="applyPaste()">貼った内容を下の欄に入れる</button>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + fld('銀行名', '銀行名', b['銀行名'], '三菱UFJ銀行')
+    + fld('支店名', '支店名', b['支店名'], '武蔵境支店')
+    + '</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'
+    + '<label class="f" style="width:110px">種別<select id="bk-口座種別">'
+    + ['普通', '当座', '貯蓄'].map(function (k) {
+        return '<option' + (b['口座種別'] === k ? ' selected' : '') + '>' + k + '</option>';
+      }).join('') + '</select></label>'
+    + fld('口座番号', '口座番号', b['口座番号'], '0098127')
+    + fld('口座名義', '口座名義', b['口座名義'], 'イマムラナオキ')
+    + '</div>'
+    + '<div id="bk-warn" style="margin-top:9px"></div>'
+    + '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn green" onclick="saveBank(\'' + id + '\')">保存する</button>'
+    + '<button class="btn sub" onclick="closeModal()">やめる</button>'
+    + (b['口座番号'] ? '<button class="btn red mini" onclick="clearBank(\'' + id + '\')">この振込先を消す</button>' : '')
+    + '</div>');
+}
+
+function applyPaste() {
+  var src = ($('bk-paste') || {}).value || '';
+  if (!src.trim()) { toast('振込先の文字をまず貼ってください'); return; }
+  var p = parseBank(src);
+  if (p.銀行名) $('bk-銀行名').value = p.銀行名;
+  if (p.支店名) $('bk-支店名').value = branchWithCode(src, p.支店名);
+  if (p.口座種別) $('bk-口座種別').value = p.口座種別;
+  if (p.口座番号) $('bk-口座番号').value = p.口座番号;
+  if (p.口座名義) $('bk-口座名義').value = p.口座名義;
+  var miss = [];
+  if (!p.銀行名) miss.push('銀行名');
+  if (!p.口座番号) miss.push('口座番号');
+  $('bk-warn').innerHTML = miss.length
+    ? '<div class="minus" style="font-size:12px">' + miss.join('と') + 'が読み取れませんでした。手で入れてください。</div>'
+    : '<div style="font-size:12px;color:#1a7f37">読み取れました。内容を確かめて保存してください。</div>';
+}
+
+function saveBank(id) {
+  var bank = {
+    銀行名: ($('bk-銀行名').value || '').trim(),
+    支店名: ($('bk-支店名').value || '').trim(),
+    口座種別: $('bk-口座種別').value || '普通',
+    口座番号: ($('bk-口座番号').value || '').replace(/[^0-9]/g, ''),
+    口座名義: ($('bk-口座名義').value || '').trim()
+  };
+  if (!bank.銀行名 || !bank.口座番号) {
+    $('bk-warn').innerHTML = '<div class="minus" style="font-size:12px">銀行名と口座番号は必ず入れてください（間違った振込先を出さないため）。</div>';
+    return;
+  }
+  if (!/^\d{6,8}$/.test(bank.口座番号)) {
+    $('bk-warn').innerHTML = '<div class="minus" style="font-size:12px">口座番号は6〜8桁の数字です。確かめてください。</div>';
+    return;
+  }
+  var payee = '';
+  DATA.bills.forEach(function (x) { if (x.id === id) payee = x['支払先']; });
+  closeModal();
+  toast('振込先を保存しています…');
+  run('updateBill', id, bank).then(function () {
+    return run('savePayeeBank', payee, JSON.stringify(bank), true);
+  }).then(function (j) {
+    var r = JSON.parse(j);
+    DATA = r.data; renderAll(); toast(r.result);
+  });
+}
+
+function clearBank(id) {
+  closeModal();
+  run('updateBill', id, { 銀行名: '', 支店名: '', 口座種別: '', 口座番号: '', 口座名義: '' })
+    .then(function (j) { applyData(j); toast('振込先を消しました'); });
 }
 
 /** 「本文」ボタン：メール本文をその場で開く。一覧には載せず都度取りに行く（一覧を軽くするため）。 */
