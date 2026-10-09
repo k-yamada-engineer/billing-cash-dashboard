@@ -153,7 +153,8 @@
     <section id="sec-cash"></section>
     <section id="sec-inv" style="display:none"></section>
     <section id="sec-bill" style="display:none"></section>
-    <section id="sec-pay" style="display:none"></section>
+    <section id="sec-payA" style="display:none"></section>
+    <section id="sec-payB" style="display:none"></section>
     <section id="sec-rec" style="display:none"></section>
     <section id="sec-pl" style="display:none"></section>
     <section id="sec-cfg" style="display:none"></section>
@@ -163,7 +164,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610081957';
+var BUILD = '202610091430';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -186,7 +187,7 @@ var CO = 'ALL';
 var FILTER = { inv: 'ALL', bill: 'ALL' };
 var FREEE_COMPANIES = { A: [], B: [] };
 var FREEE_WALLETS = { A: [], B: [] };
-var TABS = [['cash', '🏠', 'ホーム'], ['pay', '🏦', '支払・振込'], ['cfg', '⚙️', '設定']];
+var TABS = [['cash', '🏠', 'ホーム'], ['payA', '🏦', 'さすが宛'], ['payB', '🏦', 'Kiraku宛'], ['cfg', '⚙️', '設定']];
 
 function $(id) { return document.getElementById(id); }
 function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -276,9 +277,9 @@ function alertCount() {
   });
   return n;
 }
-function payCount() {
+function payCount(co) {
   var lim = d2s(new Date(Date.now() + 7 * 86400000));
-  return liveBill().filter(inScope).filter(function (b) {
+  return liveBill().filter(function (b) { return !co || b['会社'] === co; }).filter(function (b) {
     return (b['状態'] === '未払' || b['状態'] === '要承認') && Number(b['金額']) > 0 && b['支払期日'] && b['支払期日'] <= lim;
   }).length;
 }
@@ -769,11 +770,30 @@ function copyText(t, label) {
     document.body.removeChild(ta);
   }
 }
-function renderPay() {
+/** 実際のメールの差出人→宛先と受信日時。取れていない行は何も出さない。 */
+function addrOnly(x) {
+  var t = String(x || '').trim();
+  var m = t.match(/<([^>]+)>/);
+  var mail = m ? m[1] : (t.indexOf('@') >= 0 ? t.split(/[\s,]+/).filter(function (w) { return w.indexOf('@') >= 0; })[0] || '' : '');
+  var name = m ? t.slice(0, m.index).replace(/^["'\s]+|["'\s]+$/g, '') : '';
+  return { mail: mail || t, name: name };
+}
+function mailMeta(b) {
+  var f = b['差出人'], to = b['宛先'], at = b['受信日時'] || b['受領日'];
+  if (!f && !to && !at) return '';
+  var F = addrOnly(f), T = addrOnly(to);
+  var h = '<div style="margin:2px 0 7px;padding:7px 9px;background:#f6f8fb;border-left:3px solid #c7d2e3;border-radius:6px;font-size:11.5px;line-height:1.65;word-break:break-all">';
+  if (f) h += '<div><span class="muted">差出人</span> ' + (F.name ? '<b>' + esc(F.name) + '</b> ' : '') + '<span style="color:#44536b">' + esc(F.mail) + '</span></div>';
+  if (to) h += '<div><span class="muted">宛先</span> <span style="color:#44536b">' + esc(T.mail) + '</span></div>';
+  if (at) h += '<div><span class="muted">届いた日</span> ' + esc(at) + '</div>';
+  return h + '</div>';
+}
+
+function renderPay(co) {
   var t = todayStr();
   var wk = d2s(new Date(Date.now() + 7 * 86400000));
   var me = t.slice(0, 8) + '31';
-  var all = liveBill().filter(inScope).filter(function (b) { return b['状態'] !== '支払済'; });
+  var all = liveBill().filter(function (b) { return b['会社'] === co; }).filter(function (b) { return b['状態'] !== '支払済'; });
   var ready = all.filter(function (b) { return Number(b['金額']) > 0 && b['状態'] !== '要確認'; });
   var waiting = all.filter(function (b) { return !(Number(b['金額']) > 0) || b['状態'] === '要確認'; });
   function sum(a) { var n = 0; a.forEach(function (b) { n += Number(b['金額']) || 0; }); return n; }
@@ -784,7 +804,7 @@ function renderPay() {
   var later = ready.filter(function (b) { return b['支払期日'] && b['支払期日'] > me; });
   var nodue = ready.filter(function (b) { return !b['支払期日']; });
 
-  var html = '<div class="card"><h2>🏦 振り込むもの <span class="sub">期日が近い順。振り込んだら「振込済」を押す</span></h2>'
+  var html = '<div class="card"><h2>🏦 ' + esc(coName(co)) + ' が払うもの <span class="sub">期日が近い順。振り込んだら「振込済」を押す</span></h2>'
     + '<div class="kpis" style="grid-template-columns:repeat(3,1fr)">'
     + '<div class="kpi" style="background:#fdecea"><div class="l">🔴 期日を過ぎている</div><div class="v minus">' + yen(sum(over)) + '</div><div class="l">' + over.length + '件</div></div>'
     + '<div class="kpi" style="background:#fdf3e0"><div class="l">今週まで</div><div class="v warn">' + yen(sum(soon)) + '</div><div class="l">' + soon.length + '件</div></div>'
@@ -801,11 +821,11 @@ function renderPay() {
       var bank = bankLine(b);
       html += '<div class="reccard out" style="' + (g[2] ? 'background:' + g[2] + ';' : '') + '">'
         + '<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:5px">'
-        + '<span class="pill p-blue">' + esc(coName(b['会社'])) + ' が払う</span>'
         + '<b style="font-size:16px">' + esc(b['支払先']) + '</b>'
         + '<span class="pill p-gray">' + esc(b['費目'] || '未分類') + '</span>'
         + (b['状態'] === '要承認' ? '<span class="pill p-red">要承認</span>' : '')
         + '</div>'
+        + mailMeta(b)
         + '<div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px">'
         + '<span class="minus" style="font-size:22px;font-weight:700">' + yen(b['金額']) + '</span>'
         + '<span style="font-size:13px' + (days !== null && days < 3 ? ';color:#e5533d;font-weight:700' : '') + '">' + esc(b['支払期日'] || '期日なし') + '（' + dtxt + '）</span>'
@@ -849,6 +869,7 @@ function renderPay() {
         + (b['メールURL'] ? ' <a href="' + esc(b['メールURL']) + '" target="_blank" style="font-size:11.5px">メールを開く ↗</a>' : '')
         + '</div>'
         + '<div style="font-size:11.5px;margin:3px 0 7px" class="muted">' + esc(String(b['件名']).slice(0, 56)) + '</div>'
+        + mailMeta(b)
         + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">'
         + '<label class="f" style="width:130px">金額<input id="wa-' + b.id + '" type="number" value="' + esc(Number(b['金額']) > 0 ? b['金額'] : '') + '"></label>'
         + '<label class="f" style="width:150px">支払期日<input id="wd-' + b.id + '" type="date" value="' + esc(b['支払期日'] || '') + '"></label>'
@@ -858,7 +879,7 @@ function renderPay() {
     });
     html += '</div></details></div>';
   }
-  $('sec-pay').innerHTML = html;
+  $('sec-pay' + co).innerHTML = html;
 }
 
 function confirmAmt(id) {
@@ -872,7 +893,7 @@ function enrichMail() {
   toast('請求書PDFを読み取っています…（数十秒かかります）');
   run('enrichFromMail', 8).then(function (j) {
     var r = JSON.parse(j);
-    DATA = r.data; renderAll(); showTab('pay');
+    DATA = r.data; renderAll(); showTab(TAB === 'payB' ? 'payB' : 'payA');
     toast(r.result);
   });
 }
@@ -1329,17 +1350,20 @@ function renderNav() {
   var n = alertCount(), p = pendingTxns().filter(inScope).length;
   var h = '';
   TABS.forEach(function (x) {
-    var b = (x[0] === 'cash' && n) ? n : (x[0] === 'pay') ? payCount() : 0;
-    h += '<button class="' + (TAB === x[0] ? 'on' : '') + '" onclick="showTab(\'' + x[0] + '\')"><span class="ic">' + x[1] + '</span>' + x[2] + (b ? '<span class="badge">' + b + '</span>' : '') + '</button>';
+    var b = (x[0] === 'cash' && n) ? n : (x[0] === 'payA') ? payCount('A') : (x[0] === 'payB') ? payCount('B') : 0;
+    var lbl = x[0] === 'payA' ? coName('A') + '宛' : x[0] === 'payB' ? coName('B') + '宛' : x[2];
+    h += '<button class="' + (TAB === x[0] ? 'on' : '') + '" onclick="showTab(\'' + x[0] + '\')"><span class="ic">' + x[1] + '</span>' + esc(lbl) + (b ? '<span class="badge">' + b + '</span>' : '') + '</button>';
   });
   $('nav').innerHTML = h;
   var c = '';
-  [['ALL', '全社'], ['A', coName('A')], ['B', coName('B')]].forEach(function (x) {
-    c += '<button class="' + (CO === x[0] ? 'on' : '') + '" onclick="setCo(\'' + x[0] + '\')">' + esc(x[1]) + '</button>';
-  });
+  if (TAB === 'cash' || TAB === 'cfg') {
+    [['ALL', '全社'], ['A', coName('A')], ['B', coName('B')]].forEach(function (x) {
+      c += '<button class="' + (CO === x[0] ? 'on' : '') + '" onclick="setCo(\'' + x[0] + '\')">' + esc(x[1]) + '</button>';
+    });
+  }
   $('coswitch').innerHTML = c;
 }
-var RENDERERS = { cash: function () { renderCash(); }, pay: function () { renderPay(); }, cfg: function () { renderCfg(); } };
+var RENDERERS = { cash: function () { renderCash(); }, payA: function () { renderPay('A'); }, payB: function () { renderPay('B'); }, cfg: function () { renderCfg(); } };
 var RENDERED = {};
 function renderView(t) {
   if (!RENDERERS[t]) return;
