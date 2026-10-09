@@ -164,7 +164,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610091439';
+var BUILD = '202610091458';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -786,7 +786,38 @@ function mailMeta(b) {
   if (f) h += '<div><span class="muted">差出人</span> ' + (F.name ? '<b>' + esc(F.name) + '</b> ' : '') + '<span style="color:#44536b">' + esc(F.mail) + '</span></div>';
   if (to) h += '<div><span class="muted">宛先</span> <span style="color:#44536b">' + esc(T.mail) + '</span></div>';
   if (at) h += '<div><span class="muted">届いた日</span> ' + esc(at) + '</div>';
+  if (b['件名']) h += '<div style="margin-top:3px"><span class="muted">件名</span> ' + esc(b['件名']) + '</div>';
+  h += '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'
+    + '<button class="btn mini sub" onclick="openBody(\'' + b.id + '\')">本文</button>'
+    + (b['メールURL'] ? '<a class="btn mini sub" href="' + esc(b['メールURL']) + '" target="_blank" style="text-decoration:none">Gmailで開く ↗</a>' : '')
+    + '</div>';
   return h + '</div>';
+}
+
+/** 「本文」ボタン：メール本文をその場で開く。一覧には載せず都度取りに行く（一覧を軽くするため）。 */
+var BODY_CACHE = {};
+function openBody(id) {
+  function show(m) {
+    var F = addrOnly(m['差出人']), T = addrOnly(m['宛先']);
+    openModal('<h3 style="margin:0 0 10px;font-size:15px">' + esc(m['件名'] || '(件名なし)') + '</h3>'
+      + '<div style="font-size:11.5px;line-height:1.7;color:#44536b;margin-bottom:10px;word-break:break-all">'
+      + (m['差出人'] ? '<div><span class="muted">差出人</span> ' + (F.name ? '<b>' + esc(F.name) + '</b> ' : '') + esc(F.mail) + '</div>' : '')
+      + (m['宛先'] ? '<div><span class="muted">宛先</span> ' + esc(T.mail) + '</div>' : '')
+      + (m['受信日時'] ? '<div><span class="muted">届いた日</span> ' + esc(m['受信日時']) + '</div>' : '')
+      + '</div>'
+      + '<pre style="white-space:pre-wrap;word-break:break-word;font-size:12.5px;line-height:1.75;background:#f6f8fb;border:1px solid #e1e6ed;border-radius:8px;padding:11px;max-height:58vh;overflow:auto;font-family:inherit;margin:0">'
+      + esc(m['本文'] || '（本文が取れませんでした。Gmailで開いてください）') + '</pre>'
+      + '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">'
+      + (m['メールURL'] ? '<a class="btn mini sub" href="' + esc(m['メールURL']) + '" target="_blank" style="text-decoration:none">Gmailで開く ↗</a>' : '')
+      + '<button class="btn mini sub" onclick="closeModal()">閉じる</button></div>');
+  }
+  if (BODY_CACHE[id]) return show(BODY_CACHE[id]);
+  openModal('<div class="empty">本文を読み込んでいます…</div>');
+  run('getBillBody', id).then(function (j) {
+    var m = JSON.parse(j);
+    BODY_CACHE[id] = m;
+    show(m);
+  });
 }
 
 function renderPay(co) {
@@ -845,7 +876,6 @@ function renderPay(co) {
           : '<button class="btn mini green" onclick="payBill(\'' + b.id + '\')">✓ 振込済にする</button>')
         + '<button class="btn mini sub" onclick="editBill(\'' + b.id + '\')">編集</button>'
         + (b['添付URL'] ? '<a class="btn mini sub" href="' + esc(b['添付URL']) + '" target="_blank" style="text-decoration:none">請求書</a>' : '')
-        + (b['メールURL'] ? '<a class="btn mini sub" href="' + esc(b['メールURL']) + '" target="_blank" style="text-decoration:none">メール</a>' : '')
         + '</div></div>';
     });
     html += '</div>';
@@ -866,9 +896,8 @@ function renderPay(co) {
         + '<b>' + esc(b['支払先']) + '</b>'
         + '<span class="muted" style="font-size:11.5px">受領 ' + esc(b['受領日']) + '</span>'
         + (b['添付URL'] ? ' <a href="' + esc(b['添付URL']) + '" target="_blank" style="font-size:11.5px">請求書を開く ↗</a>' : '')
-        + (b['メールURL'] ? ' <a href="' + esc(b['メールURL']) + '" target="_blank" style="font-size:11.5px">メールを開く ↗</a>' : '')
+
         + '</div>'
-        + '<div style="font-size:11.5px;margin:3px 0 7px" class="muted">' + esc(String(b['件名']).slice(0, 56)) + '</div>'
         + mailMeta(b)
         + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">'
         + '<label class="f" style="width:130px">金額<input id="wa-' + b.id + '" type="number" value="' + esc(Number(b['金額']) > 0 ? b['金額'] : '') + '"></label>'
