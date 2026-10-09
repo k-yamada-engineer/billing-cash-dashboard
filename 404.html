@@ -164,7 +164,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610091430';
+var BUILD = '202610091436';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -1346,12 +1346,13 @@ function showTab(t) {
   window.scrollTo(0, 0);
 }
 function setCo(c) { CO = c; RENDERED = {}; renderNav(); renderView(TAB); }
+function shortCo(c) { return String(coName(c)).replace(/株式会社|有限会社|合同会社|\(株\)|（株）/g, '').trim() || coName(c); }
 function renderNav() {
   var n = alertCount(), p = pendingTxns().filter(inScope).length;
   var h = '';
   TABS.forEach(function (x) {
     var b = (x[0] === 'cash' && n) ? n : (x[0] === 'payA') ? payCount('A') : (x[0] === 'payB') ? payCount('B') : 0;
-    var lbl = x[0] === 'payA' ? coName('A') + '宛' : x[0] === 'payB' ? coName('B') + '宛' : x[2];
+    var lbl = x[0] === 'payA' ? shortCo('A') + '宛' : x[0] === 'payB' ? shortCo('B') + '宛' : x[2];
     h += '<button class="' + (TAB === x[0] ? 'on' : '') + '" onclick="showTab(\'' + x[0] + '\')"><span class="ic">' + x[1] + '</span>' + esc(lbl) + (b ? '<span class="badge">' + b + '</span>' : '') + '</button>';
   });
   $('nav').innerHTML = h;
