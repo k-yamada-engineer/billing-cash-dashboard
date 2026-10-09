@@ -164,7 +164,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610091547';
+var BUILD = '202610091602';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -1016,6 +1016,8 @@ function renderPay(co) {
         + (bank
           ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>' + esc(bank) + '</b>'
             + (b['口座名義'] ? '<span class="muted">' + esc(b['口座名義']) + '</span>' : '')
+            + (b._bankOk ? '<span class="pill p-green">確認済み</span>'
+                         : '<span class="pill p-red">請求書から自動で読んだ値 — 振込前に確かめる</span>')
             + '<button class="btn mini sub" onclick="copyText(' + JSON.stringify(JSON.stringify(bank + (b['口座名義'] ? ' ' + b['口座名義'] : ''))) + '.slice(1,-1),\'振込先を\')">コピー</button>'
             + '<button class="btn mini sub" onclick="openBankForm(\'' + b.id + '\')">直す</button></div>'
           : '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="minus"><b>振込先が入っていません</b></span>'
