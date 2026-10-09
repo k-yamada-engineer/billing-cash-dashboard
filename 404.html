@@ -145,7 +145,7 @@
   <span class="logo">請求・キャッシュ</span>
   <span class="coswitch" id="coswitch"></span>
   <button class="sync" onclick="openReport()">📊 シート</button>
-  <span id="stale" style="display:none;font-size:11px;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:99px">最新を取得中…</span> <button class="sync" onclick="reload_()">更新</button>
+  <span id="stale" style="display:none;font-size:11px;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:99px">最新を取得中…</span> <span id="fetchedat" style="display:none;font-size:11px;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:99px"></span> <button class="sync" onclick="reload_()">更新</button>
 </div>
 <div class="shell">
   <nav class="side" id="nav"></nav>
@@ -164,7 +164,7 @@
 <div id="toast"></div>
 
 <script>
-var BUILD = '202610091602';
+var BUILD = '202610091657';
 var DEPLOY_ID = 'AKfycbwSE7kfAV7avEunTPzP9drNLq55iIXkeeE2Bi14S_BpREw1IrKlEvfqTrZ6g6kr3-rUYQ';
 // Chromeが複数Googleアカウントにログインしていると /macros/s/ がWorkspace用URLへ転送されて失敗する。
 // その場合に備えて順に試す。成功したものを記憶して以後それを使う。
@@ -381,8 +381,8 @@ function renderCash() {
   });
   liveBill().filter(inScope).forEach(function (b) {
     if (b['状態'] !== '未払' || !b['支払期日']) return;
-    if (b['支払期日'] < t) todo.push({ k: '支払が遅れている', d: b['支払期日'], co: b['会社'], nm: b['支払先'], a: b['金額'], side: 'out', urgent: true });
-    else if (b['支払期日'] <= d2s(new Date(Date.now() + 7 * 86400000))) todo.push({ k: '今週支払う', d: b['支払期日'], co: b['会社'], nm: b['支払先'], a: b['金額'], side: 'out', urgent: false });
+    if (b['支払期日'] < t) todo.push({ k: '支払が遅れている', d: b['支払期日'], co: b['会社'], nm: b['支払先'], a: b['金額'], side: 'out', urgent: true, b: b });
+    else if (b['支払期日'] <= d2s(new Date(Date.now() + 7 * 86400000))) todo.push({ k: '今週支払う', d: b['支払期日'], co: b['会社'], nm: b['支払先'], a: b['金額'], side: 'out', urgent: false, b: b });
   });
   var pend = pendingTxns().filter(inScope);
   todo.sort(function (a, b) { return a.d < b.d ? -1 : 1; });
@@ -390,11 +390,11 @@ function renderCash() {
   html += '<div class="card"><h2>やること <span class="sub">期日順</span></h2>';
   if (!todo.length && !pend.length) html += '<div class="empty">対応が必要なものはありません 👍</div>';
   else {
-    html += '<div class="tablewrap"><table><tr><th>期日</th><th>内容</th><th>会社</th><th>相手</th><th class="num">金額</th></tr>';
+    html += '<div class="tablewrap"><table><tr><th>支払期日</th><th>内容</th><th>会社</th><th>相手</th><th class="num">金額</th><th>振込先</th></tr>';
     todo.forEach(function (x) {
-      html += '<tr><td class="' + (x.urgent ? 'minus' : '') + '">' + esc(x.d) + '</td><td>' + (x.urgent ? '🔴 ' : '') + esc(x.k) + '</td><td>' + esc(coName(x.co)) + '</td><td>' + esc(x.nm) + '</td><td class="num ' + (x.side === 'out' ? 'minus' : 'plus') + '">' + (x.side === 'out' ? '−' : '') + yen(x.a) + '</td></tr>';
+      html += '<tr><td class="' + (x.urgent ? 'minus' : '') + '">' + esc(x.d) + '</td><td>' + (x.urgent ? '🔴 ' : '') + esc(x.k) + '</td><td>' + esc(coName(x.co)) + '</td><td>' + esc(x.nm) + '</td><td class="num ' + (x.side === 'out' ? 'minus' : 'plus') + '">' + (x.side === 'out' ? '−' : '') + yen(x.a) + '</td><td>' + todoBank(x) + '</td></tr>';
     });
-    if (pend.length) html += '<tr><td class="warn">—</td><td>未消込の入出金を確認</td><td colspan="2">' + pend.length + '件</td><td class="num"><button class="btn mini sub" onclick="showTab(\'rec\')">開く</button></td></tr>';
+    if (pend.length) html += '<tr><td class="warn">—</td><td>未消込の入出金を確認</td><td colspan="3">' + pend.length + '件</td><td class="num"><button class="btn mini sub" onclick="showTab(\'rec\')">開く</button></td></tr>';
     html += '</table></div>';
   }
   html += '</div>';
@@ -792,6 +792,23 @@ function mailMeta(b) {
     + (b['メールURL'] ? '<a class="btn mini sub" href="' + esc(b['メールURL']) + '" target="_blank" style="text-decoration:none">Gmailで開く ↗</a>' : '')
     + '</div>';
   return h + '</div>';
+}
+
+/** やること表の振込先セル。どこへ振り込むかを一目で出し、無ければその場で入れられるようにする。 */
+function todoBank(x) {
+  var b = x.b;
+  if (!b) return '<span class="muted">—</span>';
+  var line = bankLine(b);
+  if (!line) {
+    return '<span class="minus" style="font-size:12px">未入力</span> '
+      + '<button class="btn mini" onclick="openBankForm(\'' + b.id + '\')">入れる</button>';
+  }
+  return '<div style="font-size:12px;line-height:1.5">' + esc(line)
+    + (b['口座名義'] ? '<br><span class="muted">' + esc(b['口座名義']) + '</span>' : '')
+    + '<br>' + (b._bankOk ? '<span class="pill p-green">確認済み</span>'
+                          : '<span class="pill p-red">要確認</span>')
+    + ' <button class="btn mini sub" onclick="copyText(' + JSON.stringify(JSON.stringify(line + (b['口座名義'] ? ' ' + b['口座名義'] : ''))) + '.slice(1,-1),\'振込先を\')">コピー</button>'
+    + '</div>';
 }
 
 /* ---------- 振込先の入力 ---------- */
@@ -1560,15 +1577,29 @@ function showErr(t) {
 }
 window.onerror = function (m, s, l, c) { showErr(m + '\n@' + l + ':' + c); };
 function applyAndCache(json) {
-  try { localStorage.setItem('bk_data', json); } catch (e) {}
+  try { localStorage.setItem('bk_data', json); localStorage.setItem('bk_data_at', String(Date.now())); } catch (e) {}
   applyData(json);
+  showFetchedAt(Date.now());
+}
+/** 画面がいつ時点のものかを出す。古いキャッシュを最新と思い込ませないため。 */
+function showFetchedAt(ms) {
+  var el = $('fetchedat');
+  if (!el) return;
+  var d = new Date(ms);
+  var p = function (n) { return ('0' + n).slice(-2); };
+  var age = Date.now() - ms;
+  el.textContent = p(d.getHours()) + ':' + p(d.getMinutes()) + ' 時点';
+  el.style.color = age > 10 * 60000 ? '#b3251a' : '';
+  el.style.display = 'inline-block';
 }
 function boot() {
   if (!WH) { showErr('合言葉がありません。URLの末尾に ?wh=合言葉 を付けて開いてください'); return; }
-  var cached = null;
-  try { cached = localStorage.getItem('bk_data'); } catch (e) {}
+  var cached = null, cachedAt = 0;
+  try { cached = localStorage.getItem('bk_data'); cachedAt = Number(localStorage.getItem('bk_data_at')) || 0; } catch (e) {}
+  // 30分以上前のキャッシュは見せない。古い支払先名や古い振込先をそのまま信じてしまうため。
+  if (cached && cachedAt && Date.now() - cachedAt > 30 * 60000) cached = null;
   if (cached) {
-    try { DATA = JSON.parse(cached); renderAll(); markStale(true); } catch (e) {}
+    try { DATA = JSON.parse(cached); renderAll(); markStale(true); if (cachedAt) showFetchedAt(cachedAt); } catch (e) {}
   } else {
     $('sec-cash').innerHTML = '<div class="card"><div class="empty">読み込んでいます…</div></div>';
     renderNav();
